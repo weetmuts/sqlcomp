@@ -1,0 +1,13 @@
+export SQLCOMP_SOURCE_NAME=AppMysql
+export SQLCOMP_SOURCE_DB_URL=jdbc:mysql://localhost/fromcomp
+export SQLCOMP_SOURCE_DB_NAME=fromcomp
+export SQLCOMP_SOURCE_DB_USER=testuser
+export SQLCOMP_SOURCE_DB_PWD=asecret
+export SQLCOMP_SOURCE_SCHEMA=
+
+export SQLCOMP_SINK_NAME=ReportPowerBI
+export SQLCOMP_SINK_DB_URL=jdbc:sqlserver://localhost/tocomp
+export SQLCOMP_SINK_DB_NAME=tocomp
+export SQLCOMP_SINK_DB_USER=testuser
+export SQLCOMP_SINK_DB_PWD=asecret
+export SQLCOMP_SINK_SCHEMA=aschema
