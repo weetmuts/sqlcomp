@@ -60,6 +60,8 @@ public class StreamData
         try
         {
             BinaryLogClient client = new BinaryLogClient(source_.db().dbHost(), 3306, source_.db().dbUser(), source_.db().dbPwd());
+            // Create a new client id that is the hash of source and sink.
+            client.setServerId(source_.name().hashCode()+sink_.name().hashCode());
             EventDeserializer eventDeserializer = new EventDeserializer();
             /*
             eventDeserializer.setCompatibilityMode(EventDeserializer.CompatibilityMode.DATE_AND_TIME_AS_LONG,
