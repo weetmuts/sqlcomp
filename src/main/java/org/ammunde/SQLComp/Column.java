@@ -56,6 +56,11 @@ public class Column
         return name_;
     }
 
+    public String quotedName()
+    {
+        return "\""+name_+"\"";
+    }
+
     public int type()
     {
         return type_;

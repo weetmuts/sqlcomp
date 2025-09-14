@@ -61,16 +61,44 @@ public class StreamData
         {
             BinaryLogClient client = new BinaryLogClient(source_.db().dbHost(), 3306, source_.db().dbUser(), source_.db().dbPwd());
             EventDeserializer eventDeserializer = new EventDeserializer();
+            /*
             eventDeserializer.setCompatibilityMode(EventDeserializer.CompatibilityMode.DATE_AND_TIME_AS_LONG,
-                                                   EventDeserializer.CompatibilityMode.CHAR_AND_BINARY_AS_BYTE_ARRAY);
+            EventDeserializer.CompatibilityMode.CHAR_AND_BINARY_AS_BYTE_ARRAY);*/
             client.setEventDeserializer(eventDeserializer);
             client.registerEventListener(this::onEvent);
-            client.connect();
-            System.exit(0);
+            // Set heartbeat interval in milliseconds (e.g., 10 seconds)
+            client.setHeartbeatInterval(10000L); // 10,000 ms = 10 seconds
+
+            // Optional: Set keep-alive interval to ensure reconnection logic
+            client.setKeepAliveInterval(60000L); // 60 seconds
+            client.setKeepAlive(true);
+
+            while (true) {
+                if (!client.isConnected())
+                {
+                    try {
+                        System.out.println("Connecting to MySQL binlog...");
+                        client.connect(); // blocking call
+                    } catch (IOException e) {
+                        System.err.println("Binlog connection failed: " + e.getMessage());
+                        e.printStackTrace();
+                    }
+                    System.out.println("Retrying binlog connection...");
+                }
+
+                // Wait before retrying
+                try {
+                    Thread.sleep(5000); // 5 seconds
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
         }
-        catch (IOException e)
+        catch (Exception e)
         {
             e.printStackTrace();
+            Log.error("Failed to stream data! ");
             System.exit(1);
         }
     }
@@ -121,7 +149,7 @@ public class StreamData
         Table sink_table = sink_.table(table_data.getTable());
         if (sink_table == null)
         {
-            System.out.println("WARNING: Could not find sink table: "+table_data.getTable()+" Please create!");
+            System.out.println("\n\nWARNING STREAM Could not find sink table: "+table_data.getTable()+" Please create!\n");
             return;
         }
         List<Serializable[]> rows = data.getRows();

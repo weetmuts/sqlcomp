@@ -32,8 +32,8 @@ public class SyncData
 {
     String table_;
     long start_;
-    int total_rows_;
-    int count_rows_;
+    long total_rows_;
+    long count_rows_;
     double rows_per_s_;
     int count_inserts_;
     int count_updates_;
@@ -125,7 +125,7 @@ public class SyncData
             return;
         }
 
-        total_rows_ = ft.numRows();
+        total_rows_ = ft.exactNumRows();
 
         Monitor monitor = new Monitor(this::renderStatus);
 
@@ -150,7 +150,7 @@ public class SyncData
         inserts.append("INSERT INTO "+tt.schemaPrefix()+tt.quotedName()+" ("+ft.columnsForSelect()+") VALUES ");
 
         StringBuilder deletes = new StringBuilder();
-        deletes.append("DELETE FROM "+tt.schemaPrefix()+tt.quotedName()+" WHERE "+ft.primaryKey()+" in (");
+        deletes.append("DELETE FROM "+tt.schemaPrefix()+tt.quotedName()+" WHERE "+ft.quotedPrimaryKey()+" in (");
 
         StringBuilder updates = new StringBuilder();
 
@@ -211,8 +211,9 @@ public class SyncData
                             System.err.println("\nINTERNAL ERROR:\n"+f.commaCols()+"\n"+t.commaCols());
                             System.exit(1);
                         }
-                        update.append(" WHERE "+ft.primaryKey()+"="+f.pk()+";");
+                        update.append(" WHERE "+ft.quotedPrimaryKey()+"="+f.pk());
                         String u = update.toString();
+                        if (updates.length() > 0) updates.append(";");
                         updates.append(u);
                         if (stream) System.out.println("\n"+Util.timestamp()+" STREAM "+u);
                         else System.out.println("\nBATCH  "+u);

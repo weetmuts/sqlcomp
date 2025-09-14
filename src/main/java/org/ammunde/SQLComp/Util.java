@@ -81,4 +81,29 @@ public class Util
         return "["+df.format(new Date())+"]";
     }
 
+    public static String rightPad(String s, int width, char pad)
+    {
+        StringBuilder out = new StringBuilder();
+        out.append(s);
+        width -= s.length();
+        while (width > 0)
+        {
+            out.append(pad);
+            width--;
+        }
+        return out.toString();
+    }
+
+    public static String sizeHR(long s)
+    {
+        double ds = s;
+        double gib = 1024*1024*1024;
+        double mib = 1024*1024;
+        double kib = 1024;
+
+        if (ds > gib) return String.format("%.2f GiB", ds/gib);
+        if (ds > mib) return String.format("%.2f MiB", ds/mib);
+        if (ds > kib) return String.format("%.2f KiB", ds/mib);
+        return ""+s;
+    }
 }

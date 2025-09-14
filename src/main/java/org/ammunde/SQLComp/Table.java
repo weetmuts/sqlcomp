@@ -40,25 +40,29 @@ public class Table
 {
     private DB db_;
     private String name_;
+    private String name_lowercase_;
     private List<Column> columns_;
     private List<String> column_names_;
     private Column[] index_to_column_;
     private Map<String,Column> name_to_column_;
     private String columns_for_select_;
     private String primary_key_; // id or name,age
-    private int num_rows_;
+    private long exact_num_rows_ = -1;
+    private long approx_num_rows_;
+    private long approx_disk_size_kb_;
     private boolean has_integer_primary_key_;
 
     public Table(DB db, String name)
     {
         db_ = db;
         name_ = name;
+        name_lowercase_ = name.toLowerCase();
         System.out.print("\33[2K\r"+db.name()+" "+name+"...");
         System.out.flush();
 
         lookupColumns();
         lookupPrimaryKey();
-        countRows();
+        getMetrics();
 
         System.out.print("\33[2K\r");
         System.out.flush();
@@ -77,6 +81,11 @@ public class Table
     public String quotedName()
     {
         return db().quoteTableName(name_);
+    }
+
+    public String lcName()
+    {
+        return name_lowercase_;
     }
 
     public String schemaPrefix()
@@ -114,14 +123,35 @@ public class Table
         return primary_key_;
     }
 
+    public String quotedPrimaryKey()
+    {
+        return "\""+primary_key_+"\"";
+    }
+
     public boolean hasIntegerPrimaryKey()
     {
         return has_integer_primary_key_;
     }
 
-    public int numRows()
+    public long exactNumRows()
     {
-        return num_rows_;
+        if (exact_num_rows_ < 0)
+        {
+            exact_num_rows_ = db().performQueryInt("select count(*) from "+db().schemaPrefix()+
+                                                   db().quoteTableName(name_));
+        }
+
+        return exact_num_rows_;
+    }
+
+    public long approxNumRows()
+    {
+        return approx_num_rows_;
+    }
+
+    public long approxDiskSizeKB()
+    {
+        return approx_disk_size_kb_;
     }
 
     public static int compareName(Table a, Table b)
@@ -129,13 +159,11 @@ public class Table
         return a.name().compareTo(b.name());
     }
 
-    public static int compareRows(Table a, Table b)
+    public static int compareDiskSize(Table a, Table b)
     {
         // Test hack, replace with proper estimation of table size instead of rows.
-        if (a.name().startsWith("q") && !b.name().startsWith("q")) return 1;
-        if (b.name().startsWith("q") && !a.name().startsWith("q")) return -1;
-        if (a.numRows() == b.numRows()) return 0;
-        if (a.numRows() > b.numRows()) return 1;
+        if (a.approxDiskSizeKB() == b.approxDiskSizeKB()) return 0;
+        if (a.approxDiskSizeKB() > b.approxDiskSizeKB()) return 1;
         return -1;
     }
 
@@ -244,10 +272,25 @@ public class Table
         }
     }
 
-    public void countRows()
+    public void getMetrics()
     {
-        num_rows_ = db().performQueryInt("select count(*) from "+db().schemaPrefix()+
-                                         db().quoteTableName(name_));
+        if (db().type() == DBType.MYSQL || db().type() == DBType.MARIADB)
+        {
+            approx_disk_size_kb_ = db().performQueryInt(
+                "SELECT round((data_length + index_length)/1024,0) AS disk "+
+                "FROM information_schema.TABLES "+
+                "WHERE table_schema = '"+db().dbName()+"' AND table_name = '"+name_+"'");
+
+            approx_num_rows_ = db().performQueryInt(
+                "SELECT table_rows FROM information_schema.tables "+
+                "WHERE table_schema = '"+db().dbName()+"' AND table_name = '"+name_+"'");
+        }
+        else
+        {
+            approx_num_rows_ = db().performQueryInt("select count(*) from "+db().schemaPrefix()+
+                                                    db().quoteTableName(name_));
+            approx_disk_size_kb_ = approx_num_rows_;
+        }
     }
 
     public String print()
@@ -528,12 +571,13 @@ public class Table
             rows.add(new Row(rs.getInt(1), cols));
         };
 
-        // Yes, the primary key will be duplicated here, but that is ok.
+        // Yes, the primary key will be duplicated in the select,
+        // because the primary key is also inside the columnsForSelect.
+        // But we want the primary key to be the first content column.
         db().performQuery(cb,
-                          "select "+primaryKey()+","+source.columnsForSelect()+
-                          " from "+db().schemaPrefix()+
-                          db().quoteTableName(name_)+
-                          " where "+primaryKey()+">="+pk.from()+" AND "+primaryKey()+"<="+pk.to());
+                          "select "+quotedPrimaryKey()+","+source.columnsForSelect()+
+                          " from "+db().schemaPrefix()+db().quoteTableName(name_)+
+                          " where "+quotedPrimaryKey()+">="+pk.from()+" AND "+quotedPrimaryKey()+"<="+pk.to());
 
 
         return rows;

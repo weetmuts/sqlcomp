@@ -38,6 +38,7 @@ public class Database
     private List<Table> tables_;
     private List<String> table_names_;
     private Map<String,Table> name_to_table_;
+    private int max_table_name_length_;
 
     public Database(String prefix, String table_pattern)
     {
@@ -57,7 +58,7 @@ public class Database
 
     public Table table(String name)
     {
-        return name_to_table_.get(name);
+        return name_to_table_.get(name.toLowerCase());
     }
 
     public DB db()
@@ -70,10 +71,13 @@ public class Database
         return db_.name();
     }
 
+    public int maxTableNameLength()
+    {
+        return max_table_name_length_;
+    }
+
     public void loadTables(String table_pattern)
     {
-        int total_rows = 0;
-
         try
         {
             tables_= new LinkedList<>();
@@ -93,12 +97,16 @@ public class Database
                 while (tables.next())
                 {
                     String name = tables.getString("TABLE_NAME");
-                    name = name.toLowerCase();
-                    if (table_pattern == null || table_pattern.length() == 0 || table_pattern.equals(name))
+                    // Sequelize used to store the Table with real hardcoded
+                    // uppercase characters. Very annoying. Match agains lower case here.
+                    String lower_name = name.toLowerCase();
+                    if (table_pattern == null || table_pattern.length() == 0 || table_pattern.equals(lower_name))
                     {
-                        if (!db().ignored(name))
+                        if (!db().ignored(lower_name))
                         {
+                            // Store the exact table name here.
                             table_names_.add(name);
+                            if (name.length() > max_table_name_length_) max_table_name_length_ = name.length();
                         }
                     }
                 }
@@ -110,8 +118,7 @@ public class Database
             {
                 Table t = new Table(db(), n);
                 tables_.add(t);
-                name_to_table_.put(n, t);
-                total_rows += t.numRows();
+                name_to_table_.put(n.toLowerCase(), t);
             }
         }
         catch (SQLException e)

@@ -48,7 +48,7 @@ public class DB
     private String db_url_;
     private String schema_;
     private String schema_prefix_; // The schema_+"." or "" if no schema_
-    private String type_;
+    private DBType type_;
     private long last_connection_check_;
     private Set<String> ignored_tables_;
 
@@ -98,7 +98,7 @@ public class DB
     }
 
 
-    public String type()
+    public DBType type()
     {
         return type_;
     }
@@ -106,7 +106,12 @@ public class DB
     public void connect(String prefix)
     {
         prefix_ = prefix;
-        if (!reconnect()) System.exit(1);
+        if (!reconnect())
+        {
+            Log.error("Failed second reconnect attempt!");
+            System.exit(1);
+        }
+
     }
 
     public boolean reconnect()
@@ -133,10 +138,10 @@ public class DB
         if (schema_ != null && schema_.length() > 0) schema_prefix_ = schema_+".";
         else schema_prefix_ = "";
 
-        if (db_url_.startsWith("jdbc:postgresql")) type_ = "POSTGRES";
-        if (db_url_.startsWith("jdbc:mariadb")) type_ = "MARIADB";
-        if (db_url_.startsWith("jdbc:mysql")) type_ = "MYSQL";
-        if (db_url_.startsWith("jdbc:sqlserver")) type_ = "SQLSERVER";
+        if (db_url_.startsWith("jdbc:postgresql")) type_ = DBType.POSTGRESQL;
+        if (db_url_.startsWith("jdbc:mysql")) type_ = DBType.MYSQL;
+        if (db_url_.startsWith("jdbc:mariadb")) type_ = DBType.MARIADB;
+        if (db_url_.startsWith("jdbc:sqlserver")) type_ = DBType.SQLSERVER;
 
         try
         {
@@ -149,6 +154,11 @@ public class DB
             System.out.println("Failed to connect to "+db_url_);
             last_connection_check_ = 0;
             return false;
+        }
+
+        if (type_ == DBType.MYSQL || type_ == DBType.MARIADB)
+        {
+            performUpdate("SET SESSION SQL_MODE='ANSI_QUOTES'");
         }
         return true;
     }
@@ -220,7 +230,11 @@ public class DB
             {
                 System.out.println(Util.timestamp()+" Failure connection check "+name_+"\n\n");
                 // Try to open again. One test only, give up if it fails.
-                if (!reconnect()) System.exit(1);
+                if (!reconnect())
+                {
+                    Log.error("Failed second reconnect attempt!");
+                    System.exit(1);
+                }
             }
         }
         catch (SQLException e)
@@ -228,7 +242,11 @@ public class DB
             e.printStackTrace();
             System.out.println(Util.timestamp()+" Failure connection check "+name_+"\n\n");
             // Try to open again. One test only, give up if it fails.
-            if (!reconnect()) System.exit(1);
+            if (!reconnect())
+            {
+                Log.error("Failed second reconnect attempt!");
+                System.exit(1);
+            }
         }
     }
 
@@ -366,7 +384,9 @@ public class DB
 
     public String quoteTableName(String t)
     {
-        if (type_.equals("SQLSERVER")) return "["+t+"]";
+        if (type_ == DBType.SQLSERVER) return "["+t+"]";
+        if (type_ == DBType.MYSQL || type_ == DBType.MARIADB) return "`"+t+"`";
+        if (type_ == DBType.POSTGRESQL) return "\""+t+"\"";
         return t;
     }
 

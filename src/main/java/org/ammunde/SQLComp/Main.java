@@ -46,26 +46,14 @@ public class Main
         if (args[0].equals("show-source-tables"))
         {
             Database source = useEnvWithPrefix("SQLCOMP_SOURCE", "");
-            ArrayList<Table> tables = new ArrayList<>(source.tables());
-            Collections.sort(tables, Table::compareRows);
-
-            for (Table t : tables)
-            {
-                System.out.println(t.name()+" "+t.numRows()+" ("+t.primaryKey()+")");
-            }
+            showTables(source);
             return;
         }
 
         if (args[0].equals("show-sink-tables"))
         {
             Database sink = useEnvWithPrefix("SQLCOMP_SINK", "");
-            ArrayList<Table> tables = new ArrayList<>(sink.tables());
-            Collections.sort(tables, Table::compareRows);
-
-            for (Table t : tables)
-            {
-                System.out.println(t.name()+" "+t.numRows()+" ("+t.primaryKey()+")");
-            }
+            showTables(sink);
             return;
         }
 
@@ -73,6 +61,8 @@ public class Main
         {
             String table_pattern = "";
             if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
+
+            System.out.println("stream-data "+table_pattern);
 
             Database source = useEnvWithPrefix("SQLCOMP_SOURCE", "");
             Database sink   = useEnvWithPrefix("SQLCOMP_SINK", "");
@@ -106,6 +96,8 @@ public class Main
         {
             String table_pattern = ""; // Default is all tables
             if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
+
+            System.out.println("sync-data "+table_pattern);
 
             sync(table_pattern, false);
             return;
@@ -182,7 +174,10 @@ public class Main
 
     static void sync(String table, boolean dryrun)
     {
-        System.out.println(Util.timestamp()+ "Sync started");
+        System.out.println(Util.timestamp()+ " Sync started ["+table+"] "
+                           +System.getenv("SQLCOMP_SOURCE_NAME")
+                           +" --> "
+                           +System.getenv("SQLCOMP_SINK_NAME"));
 
         Database source = useEnvWithPrefix("SQLCOMP_SOURCE", table);
         Database sink   = useEnvWithPrefix("SQLCOMP_SINK", table);
@@ -199,7 +194,10 @@ public class Main
             SyncData sync = new SyncData();
             sync.syncData(source, sink, t.name(), "", dryrun);
 
-            System.out.println(Util.timestamp()+" Sync completed table "+table);
+            System.out.println(Util.timestamp()+" Sync completed ["+table+"] "
+                               +System.getenv("SQLCOMP_SOURCE_NAME")
+                               +" --> "
+                               +System.getenv("SQLCOMP_SINK_NAME"));
 
             return;
         }
@@ -208,7 +206,7 @@ public class Main
 
         ArrayList<Table> tables = new ArrayList<>(source.tables());
         // Sync the small tables first!
-        Collections.sort(tables, Table::compareRows);
+        Collections.sort(tables, Table::compareDiskSize);
 
         int i = 1;
         for (Table t : tables)
@@ -225,6 +223,27 @@ public class Main
             i++;
         }
 
-        System.out.println(Util.timestamp()+" Sync completed");
+        System.out.println(Util.timestamp()+" Sync completed ["+table+"] "
+                           +System.getenv("SQLCOMP_SOURCE_NAME")
+                           +" --> "
+                           +System.getenv("SQLCOMP_SINK_NAME"));
+    }
+
+    static void showTables(Database d)
+    {
+        ArrayList<Table> tables = new ArrayList<>(d.tables());
+        Collections.sort(tables, Table::compareDiskSize);
+
+        int i = 1;
+        String num = ""+tables.size();
+        for (Table t : tables)
+        {
+            String nr = ""+i+"/"+num;
+            System.out.println(nr+" "+Util.rightPad(t.name(), d.maxTableNameLength(), ' ')
+                               +"  "+Util.rightPad(Util.sizeHR(1024*t.approxDiskSizeKB()),15,' ')
+                               +"  "+Util.rightPad(t.approxNumRows()+" c.rows ",15,' ')
+                               +" ("+t.primaryKey()+")");
+            i++;
+        }
     }
 }
