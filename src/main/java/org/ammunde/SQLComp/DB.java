@@ -158,7 +158,19 @@ public class DB
 
         if (type_ == DBType.MYSQL || type_ == DBType.MARIADB)
         {
-            performUpdate("SET SESSION SQL_MODE='ANSI_QUOTES'");
+            String session = performQueryString("SELECT @@session.sql_mode");
+            System.out.println("SESSION SETTINGS "+session);
+            if (session.indexOf("ANSI_QUOTES") == -1)
+            {
+                session = "ANSI_QUOTES,"+session;
+                performUpdate("SET SESSION SQL_MODE='"+session+"'");
+                System.out.println("NEW SESSION SETTINGS "+session);
+            }
+
+            // Disable the foreign key checks...not a good solution but necessary
+            // for now to be able to update all tables in the wrong order.
+            System.out.println("SET FOREIGN_KEY_CHECKS = 0");
+            performUpdate("SET FOREIGN_KEY_CHECKS = 0");
         }
         return true;
     }
