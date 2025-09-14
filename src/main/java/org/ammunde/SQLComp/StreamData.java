@@ -73,26 +73,35 @@ public class StreamData
             client.setKeepAliveInterval(60000L); // 60 seconds
             client.setKeepAlive(true);
 
-            while (true) {
-                if (!client.isConnected())
-                {
-                    try {
-                        System.out.println("Connecting to MySQL binlog...");
-                        client.connect(); // blocking call
-                    } catch (IOException e) {
-                        System.err.println("Binlog connection failed: " + e.getMessage());
-                        e.printStackTrace();
-                    }
-                    System.out.println("Retrying binlog connection...");
+            client.registerLifecycleListener(new BinaryLogClient.LifecycleListener() {
+                @Override
+                public void onConnect(BinaryLogClient client) {
+                    System.out.println("✅ Connected to MySQL binlog");
                 }
 
-                // Wait before retrying
-                try {
-                    Thread.sleep(5000); // 5 seconds
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
+                @Override
+                public void onCommunicationFailure(BinaryLogClient client, Exception ex) {
+                    System.out.println("⚠️ Communication failure: " + ex.getMessage());
                 }
+
+                @Override
+                public void onEventDeserializationFailure(BinaryLogClient client, Exception ex) {
+                    System.out.println("⚠️ Event deserialization failure: " + ex.getMessage());
+                }
+
+                @Override
+                public void onDisconnect(BinaryLogClient client) {
+                    System.out.println("❌ Disconnected from MySQL binlog");
+                }
+            });
+
+
+            try {
+                System.out.println("Connecting to MySQL binlog...");
+                client.connect(20000); // forking call.
+            } catch (IOException e) {
+                System.err.println("Binlog connection failed: " + e.getMessage());
+                e.printStackTrace();
             }
         }
         catch (Exception e)
