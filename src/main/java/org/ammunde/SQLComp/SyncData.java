@@ -214,7 +214,7 @@ public class SyncData
                         update.append(" WHERE "+ft.primaryKey()+"="+f.pk()+";");
                         String u = update.toString();
                         updates.append(u);
-                        if (stream) System.out.println("\nSTREAM "+u);
+                        if (stream) System.out.println("\n"+Util.timestamp()+" STREAM "+u);
                         else System.out.println("\nBATCH  "+u);
                         num_updates++;
                     }
@@ -264,7 +264,7 @@ public class SyncData
         if (num_inserts > 0)
         {
             String ins = inserts.toString();
-            if (stream || dryrun) System.out.println("\nSTREAM "+ins);
+            if (stream || dryrun) System.out.println("\n"+Util.timestamp()+" STREAM "+ins);
             // Do not print batch inserts, too many of them. Perhaps add verbose flag?
             if (!dryrun) tt.db().performUpdate(ins);
         }
@@ -278,7 +278,7 @@ public class SyncData
         {
             deletes.append(")");
             String d = deletes.toString();
-            if (stream) System.out.println("\nSTREAM "+d);
+            if (stream) System.out.println("\n"+Util.timestamp()+" STREAM "+d);
             else System.out.println("\nBATCH  "+d);
             if (!dryrun) tt.db().performUpdate(d);
         }

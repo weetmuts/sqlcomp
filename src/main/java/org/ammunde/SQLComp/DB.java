@@ -97,6 +97,7 @@ public class DB
         return schema_prefix_;
     }
 
+
     public String type()
     {
         return type_;
@@ -217,6 +218,7 @@ public class DB
             }
             else
             {
+                System.out.println(Util.timestamp()+" Failure connection check "+name_+"\n\n");
                 // Try to open again. One test only, give up if it fails.
                 if (!reconnect()) System.exit(1);
             }
@@ -224,6 +226,7 @@ public class DB
         catch (SQLException e)
         {
             e.printStackTrace();
+            System.out.println(Util.timestamp()+" Failure connection check "+name_+"\n\n");
             // Try to open again. One test only, give up if it fails.
             if (!reconnect()) System.exit(1);
         }

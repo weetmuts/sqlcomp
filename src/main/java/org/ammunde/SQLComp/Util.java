@@ -23,6 +23,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package org.ammunde.SQLComp;
 
+import java.util.Date;
+import java.util.TimeZone;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+
 public class Util
 {
     public static String secondsToHR(long seconds)
@@ -66,6 +71,14 @@ public class Util
             return url.substring(a+2, b);
         }
         return null;
+    }
+
+    public static String timestamp()
+    {
+        TimeZone tz = TimeZone.getTimeZone("UTC");
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'");
+        df.setTimeZone(tz);
+        return "["+df.format(new Date())+"]";
     }
 
 }

@@ -88,13 +88,14 @@ public class Main
             {
                 try { Thread.sleep(10000); } catch (InterruptedException e) { }
                 LocalTime now = LocalTime.now();
-                if (now.getHour() == 3 && now.getMinute() == 0)
+                if (now.getHour() == 2 && now.getMinute() == 0)
                 {
+                    System.out.println(Util.timestamp()+" nightly sync started.");
                     sync(table_pattern, false);
                 }
                 // Do not try to sync again during this minutes. Only relevant
                 // if you have a really small database.
-                while (now.getHour() == 3 && now.getMinute() == 0)
+                while (now.getHour() == 2 && now.getMinute() == 0)
                 {
                     try { Thread.sleep(10000); } catch (InterruptedException e) { }
                 }
@@ -181,13 +182,11 @@ public class Main
 
     static void sync(String table, boolean dryrun)
     {
-        LocalDateTime now = LocalDateTime.now();
-        String iso_time = now.format(DateTimeFormatter.ISO_DATE_TIME);
-
-        System.out.println("Sync started "+iso_time);
+        System.out.println(Util.timestamp()+ "Sync started");
 
         Database source = useEnvWithPrefix("SQLCOMP_SOURCE", table);
         Database sink   = useEnvWithPrefix("SQLCOMP_SINK", table);
+
 
         if (table.length() > 0)
         {
@@ -200,9 +199,7 @@ public class Main
             SyncData sync = new SyncData();
             sync.syncData(source, sink, t.name(), "", dryrun);
 
-            now = LocalDateTime.now();
-            iso_time = now.format(DateTimeFormatter.ISO_DATE_TIME);
-            System.out.println("Sync completed "+iso_time);
+            System.out.println(Util.timestamp()+" Sync completed table "+table);
 
             return;
         }
@@ -228,8 +225,6 @@ public class Main
             i++;
         }
 
-        now = LocalDateTime.now();
-        iso_time = now.format(DateTimeFormatter.ISO_DATE_TIME);
-        System.out.println("Sync completed "+iso_time);
+        System.out.println(Util.timestamp()+" Sync completed");
     }
 }
