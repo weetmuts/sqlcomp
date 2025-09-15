@@ -89,9 +89,10 @@ sqlcomp compare-data myaddresstable
 ```
 
 The command stream-data listens to the binlog events from a mysql source
-and performs a sync-data on the primary keys that appear in the binlog.
-It also immediately performs a sync-data, and repeating this sync-data
-in the night 02:00 every day.
+and performs a sync on rows for which the primary keys appear in the binlog.
+(I.e. it does not apply the binlog changes, it just use it to trigger the normal sync
+on those rows.) It also immediately performs a full sync-data, and repeating
+this sync-data in the night 02:00 every day.
 
 ```
 sqlcomp stream-data
