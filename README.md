@@ -48,7 +48,7 @@ But you have to make sure the table definitions are compatible for syncing from 
 Setup environment variables: (This will be replaced with a config file in the future.)
 ```
 export SQLCOMP_SOURCE_NAME=MyMysql
-export SQLCOMP_SOURCE_DB_URL="jdbc:mariadb://mysourcedatabase/fromcomp?allowMultiQueries=true"
+export SQLCOMP_SOURCE_DB_URL="jdbc:mariadb://mysourcedatabase/fromcomp?autoReconnect=true&allowMultiQueries=true"
 export SQLCOMP_SOURCE_DB_NAME=fromcomp
 export SQLCOMP_SOURCE_DB_USER=testuser
 export SQLCOMP_SOURCE_DB_PWD=asecret
@@ -66,8 +66,8 @@ export SQLCOMP_SINK_IGNORED_TABLES=sequelizedata,sequelizemeta
 
 (Note that when sinking to MySQL you need to specify `allowMultiQueries=true`
 since sqlcomp generates multiple updates in a single statement. Note that when sinking to SQL server
-you need `ConnectRetryCount=3;ConnectRetryInterval=10` since sqlcomp does not retry for you if
-the connection is shut down due to an idle timeout.)
+you need `ConnectRetryCount=3;ConnectRetryInterval=10` and for MySQL `autoReconnect=true` since
+sqlcomp does not retry for you if the connection is shut down due to an idle timeout.)
 
 The command sync-data command will sync all tables (that have not been ignored)
 printing warnings for tables without proper integer primary keys and printing
