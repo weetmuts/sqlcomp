@@ -61,7 +61,7 @@ export SQLCOMP_SINK_DB_NAME=tocomp
 export SQLCOMP_SINK_DB_USER=testuser
 export SQLCOMP_SINK_DB_PWD=asecret
 export SQLCOMP_SINK_SCHEMA=tocomp
-export SQLCOMP_SOURCE_IGNORED_TABLES=sequelizedata,sequelizemeta
+export SQLCOMP_SINK_IGNORED_TABLES=sequelizedata,sequelizemeta
 ```
 
 (Note that when sinking to MySQL you need to specify `allowMultiQueries=true`
