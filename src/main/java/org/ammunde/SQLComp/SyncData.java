@@ -274,7 +274,7 @@ public class SyncData
         {
             String ins = inserts.toString();
             if (dryrun) Log.info(ins+"\n");
-            else if (stream) Log.verbose("(stream-data) "+ins);
+            else if (stream) Log.verbose("(stream-data) "+ins+"\n");
             // Do not print batch inserts, too many of them.
             if (!dryrun) tt.db().performSyncUpdate(ins);
         }
@@ -288,9 +288,9 @@ public class SyncData
         {
             deletes.append(")");
             String d = deletes.toString();
-            if (dryrun) Log.info(d);
-            else if (stream) Log.verbose("(stream-data) "+d);
-            else Log.verbose("(sync-data) "+d);
+            if (dryrun) Log.info(d+"\n");
+            else if (stream) Log.verbose("(stream-data) "+d+"\n");
+            else Log.verbose("(sync-data) "+d+"\n");
             if (!dryrun) tt.db().performSyncUpdate(d);
         }
 
