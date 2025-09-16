@@ -78,7 +78,7 @@ public class Util
         TimeZone tz = TimeZone.getTimeZone("UTC");
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'");
         df.setTimeZone(tz);
-        return "["+df.format(new Date())+"]";
+        return df.format(new Date());
     }
 
     public static String rightPad(String s, int width, char pad)
@@ -106,4 +106,17 @@ public class Util
         if (ds > kib) return String.format("%.2f KiB", ds/mib);
         return ""+s;
     }
+
+    public static String[] shiftLeft(String[] args)
+    {
+        if (args.length <= 1) return new String[0];
+
+	String[] tmp = new String[args.length-1];
+        for (int i=0; i<args.length-1; ++i)
+	{
+            tmp[i] = args[i+1];
+        }
+        return tmp;
+    }
+
 }

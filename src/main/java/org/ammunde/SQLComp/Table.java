@@ -57,15 +57,15 @@ public class Table
         db_ = db;
         name_ = name;
         name_lowercase_ = name.toLowerCase();
-        System.out.print("\33[2K\r"+db.name()+" "+name+"...");
-        System.out.flush();
+        Log.prefixNewline(true);
+        Log.status("(table) get metrics for "+db.name()+" "+name);
 
         lookupColumns();
         lookupPrimaryKey();
         getMetrics();
 
-        System.out.print("\33[2K\r");
-        System.out.flush();
+        Log.status("");
+        Log.prefixNewline(false);
     }
 
     public DB db()
@@ -310,13 +310,13 @@ public class Table
 
     public void printCreate()
     {
-        System.out.print("CREATE TABLE "+name_+" (");
+        Log.info("CREATE TABLE "+name_+" (");
         boolean first = true;
         for (Column c : columns_)
         {
             if (!first)
             {
-                System.out.print(", ");
+                Log.info(", ");
             }
             else
             {
@@ -324,8 +324,8 @@ public class Table
             }
             c.printCreate();
         }
-        System.out.print(", PRIMARY KEY ("+primary_key_+")");
-        System.out.println(");");
+        Log.info(", PRIMARY KEY ("+primary_key_+")");
+        Log.info(");\n");
     }
 
     static boolean isText(int t)
@@ -402,6 +402,11 @@ public class Table
             if (c == '\'')
             {
                 out.append("''");
+                continue;
+            }
+            else if (c == '\\')
+            {
+                out.append("\\\\");
                 continue;
             }
             else if (c > 1000)

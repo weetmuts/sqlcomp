@@ -40,6 +40,7 @@ public class SyncData
     int count_deletes_;
     int last_primary_key_;
     String info_;
+    int max_table_name_length_;
 
     synchronized String renderStatus()
     {
@@ -59,6 +60,7 @@ public class SyncData
         if (count_inserts_ > 0) info += count_inserts_+"i ";
         if (count_updates_ > 0) info += count_updates_+"u ";
         if (count_deletes_ > 0) info += count_deletes_+"d ";
+        if (Log.numSyncErrors() > 0) info += "\u001B[31m!errors!\u001B[0m ";
         info = info.trim();
         if (info.length() > 0) info = "("+info+")";
         else
@@ -80,11 +82,11 @@ public class SyncData
 
         if (count_rows_ < total_rows_)
         {
-            return info_+table_+": "+p+"% ("+count_rows_+"/"+total_rows_+" pk\""+last_primary_key_+"\") "+speed+info+" | "+time;
+            return info_+Util.rightPad(table_, max_table_name_length_, ' ')+": "+p+"% ("+count_rows_+"/"+total_rows_+" pk\""+last_primary_key_+"\") "+speed+info+" | "+time;
         }
         else
         {
-            return info_+table_+": "+p+"% ("+count_rows_+"/"+total_rows_+") "+speed+info+" | "+time;
+            return info_+Util.rightPad(table_, max_table_name_length_, ' ')+": "+p+"% ("+count_rows_+"/"+total_rows_+") "+speed+info+" | "+time;
         }
     }
 
@@ -114,19 +116,22 @@ public class SyncData
         Table ft = from.table(table);
         Table tt = to.table(table);
 
+        max_table_name_length_ = from.maxTableNameLength();
+
         if (ft == null)
         {
-            System.err.println("ERROR: Table >"+table+"< does not exist in source!");
+            Log.error("(sync-data) tab >"+table+"< does not exist in source!");
             System.exit(1);
         }
         if (tt == null)
         {
-            System.err.println("WARNING: table "+table+" does not exist in sink! Please create!");
+            Log.warning("(sync-data) table "+table+" does not exist in sink! Please create!\n");
             return;
         }
 
         total_rows_ = ft.exactNumRows();
 
+        Log.clearSyncErrorWarning();
         Monitor monitor = new Monitor(this::renderStatus);
 
         List<PK> chunks = ft.chunkPrimaryKeys(100);
@@ -142,6 +147,7 @@ public class SyncData
         }
 
         monitor.stop();
+        Log.warnIfSyncErrorsFound();
     }
 
     void syncChunk(Table ft, Table tt, PK chunk, boolean stream, boolean dryrun)
@@ -177,8 +183,9 @@ public class SyncData
                 {
                     if (f.cols().size() != t.cols().size())
                     {
-                        System.out.println("\nWARNING: mismatch table definition "+ft.name()+" skipping UPDATE!");
-                        System.out.println(f.commaCols()+"\n"+t.commaCols());
+                        Log.warning("(sync-data) mismatch table definition "+ft.name()+" skipping update\n"
+                                    +f.commaCols()+"\n"
+                                    +t.commaCols()+"\n");
                     }
                     else if (!Compare.same(f.cols(), t.cols()))
                     {
@@ -208,15 +215,16 @@ public class SyncData
                         }
                         if (num_cols == 0)
                         {
-                            System.err.println("\nINTERNAL ERROR:\n"+f.commaCols()+"\n"+t.commaCols());
+                            Log.error("INTERNAL ERROR:\n"+f.commaCols()+"\n"+t.commaCols());
                             System.exit(1);
                         }
                         update.append(" WHERE "+ft.quotedPrimaryKey()+"="+f.pk());
                         String u = update.toString();
                         if (updates.length() > 0) updates.append(";");
                         updates.append(u);
-                        if (stream) System.out.println("\n"+Util.timestamp()+" STREAM "+u);
-                        else System.out.println("\nBATCH  "+u);
+                        if (dryrun) Log.info(u+"\n");
+                        else if (stream) Log.verbose("(stream-data) "+u+"\n");
+                        else Log.verbose("sync-data) "+u+"\n");
                         num_updates++;
                     }
                     else
@@ -265,23 +273,25 @@ public class SyncData
         if (num_inserts > 0)
         {
             String ins = inserts.toString();
-            if (stream || dryrun) System.out.println("\n"+Util.timestamp()+" STREAM "+ins);
-            // Do not print batch inserts, too many of them. Perhaps add verbose flag?
-            if (!dryrun) tt.db().performUpdate(ins);
+            if (dryrun) Log.info(ins+"\n");
+            else if (stream) Log.verbose("(stream-data) "+ins);
+            // Do not print batch inserts, too many of them.
+            if (!dryrun) tt.db().performSyncUpdate(ins);
         }
 
         if (num_updates > 0)
         {
-            if (!dryrun) tt.db().performUpdate(updates.toString());
+            if (!dryrun) tt.db().performSyncUpdate(updates.toString());
         }
 
         if (num_deletes > 0)
         {
             deletes.append(")");
             String d = deletes.toString();
-            if (stream) System.out.println("\n"+Util.timestamp()+" STREAM "+d);
-            else System.out.println("\nBATCH  "+d);
-            if (!dryrun) tt.db().performUpdate(d);
+            if (dryrun) Log.info(d);
+            else if (stream) Log.verbose("(stream-data) "+d);
+            else Log.verbose("(sync-data) "+d);
+            if (!dryrun) tt.db().performSyncUpdate(d);
         }
 
         addCounts(from_rows.size(), num_inserts, num_updates, num_deletes, chunk.from());

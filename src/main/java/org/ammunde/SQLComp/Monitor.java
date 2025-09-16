@@ -36,6 +36,7 @@ public class Monitor
         update_ = update;
         running_ = true;
         thread_ = new Thread(this::go);
+        Log.prefixNewline(true);
         thread_.start();
     }
 
@@ -43,6 +44,7 @@ public class Monitor
     {
         running_ = false;
         thread_.interrupt();
+        Log.prefixNewline(false);
 
         String l = "";
         try
@@ -53,8 +55,7 @@ public class Monitor
         {
             e.printStackTrace();
         }
-        System.out.println("\33[2K\r"+l);
-        System.out.flush();
+        Log.statusFinal(l);
     }
 
     public void go()
@@ -71,8 +72,7 @@ public class Monitor
                 l = ""+e;
                 e.printStackTrace();
             }
-            System.out.print("\33[2K\r"+l);
-            System.out.flush();
+            Log.status(l);
             try
             {
                 Thread.sleep(1000);

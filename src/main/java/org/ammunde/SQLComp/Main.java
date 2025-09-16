@@ -35,37 +35,42 @@ public class Main
 {
     public static void main(String[] args) throws Exception
     {
-        boolean ok = true;
-
         if (args.length == 0)
         {
             printHelp();
             return;
         }
 
-        if (args[0].equals("show-source-tables"))
+        // Pick out --verbose and --debug
+        args = Log.parseArgs(args);
+
+        String cmd = args[0];
+
+        if (cmd.equals("show-source-tables"))
         {
             Database source = useEnvWithPrefix("SQLCOMP_SOURCE", "");
             showTables(source);
             return;
         }
 
-        if (args[0].equals("show-sink-tables"))
+        if (cmd.equals("show-sink-tables"))
         {
             Database sink = useEnvWithPrefix("SQLCOMP_SINK", "");
             showTables(sink);
             return;
         }
 
-        if (args[0].equals("stream-data"))
+        if (cmd.equals("stream-data"))
         {
             String table_pattern = "";
             if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
 
-            System.out.println("stream-data "+table_pattern);
+            if (!table_pattern.equals("")) Log.verbose("(stream-data) streaming "+table_pattern+"\n");
+            else Log.verbose("(stream-data) streaming all tables\n");
 
-            Database source = useEnvWithPrefix("SQLCOMP_SOURCE", "");
-            Database sink   = useEnvWithPrefix("SQLCOMP_SINK", "");
+            Database source = useEnvWithPrefix("SQLCOMP_SOURCE", table_pattern);
+            Database sink   = useEnvWithPrefix("SQLCOMP_SINK", table_pattern);
+
             StreamData stream = new StreamData(source, sink);
 
             Thread thread = new Thread(stream::go);
@@ -78,58 +83,74 @@ public class Main
             {
                 try { Thread.sleep(10000); } catch (InterruptedException e) { }
                 LocalTime now = LocalTime.now();
-                if (now.getHour() == 2 && now.getMinute() == 0)
+                if (now.getHour() == 3 && now.getMinute() == 0)
                 {
-                    System.out.println(Util.timestamp()+" nightly sync started.");
+                    Log.verbose("(stream-data) nightly sync started\n");
                     sync(table_pattern, false);
                 }
                 // Do not try to sync again during this minutes. Only relevant
                 // if you have a really small database.
-                while (now.getHour() == 2 && now.getMinute() == 0)
+                while (now.getHour() == 3 && now.getMinute() == 0)
                 {
                     try { Thread.sleep(10000); } catch (InterruptedException e) { }
                 }
             }
         }
 
-        if (args[0].equals("sync-data"))
+        if (cmd.equals("sync-data"))
         {
             String table_pattern = ""; // Default is all tables
             if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
 
-            System.out.println("sync-data "+table_pattern);
+            if (!table_pattern.equals("")) Log.verbose("(sync-data) "+table_pattern+"\n");
+            else Log.verbose("(sync-data) all tables\n");
 
             sync(table_pattern, false);
             return;
         }
 
-        if (args[0].equals("compare-data"))
+        if (cmd.equals("compare-data"))
         {
             String table_pattern = ""; // Default is all tables
             if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
+
+            if (!table_pattern.equals("")) Log.verbose("(compare-data) "+table_pattern+"\n");
+            else Log.verbose("(comapare-data) all tables\n");
 
             sync(table_pattern, true);
             return;
         }
 
-        if (args[0].equals("compare-tables"))
+        if (cmd.equals("compare-tables"))
         {
             Database from = useEnvWithPrefix("SQLCOMP_SOURCE", "");
             Database to   = useEnvWithPrefix("SQLCOMP_SINK", "");
 
-            ok &= Compare.compareTables(from, to);
+            Log.verbose("(compare-tables) "+from.name()+" --> "+to.name()+"\n");
+            boolean change_detected = Compare.compareTables(from, to);
 
             List<String> tables = Compare.inBoth(from.tableNames(), to.tableNames());
             for (String t : tables)
             {
                 Table tt = to.table(t);
                 Table ft = from.table(t);
-                Compare.tableDefinition(ft, tt);
+                change_detected |= Compare.tableDefinition(ft, tt);
+            }
+
+            if (change_detected)
+            {
+                // Changes have already been printed.
+                System.exit(1);
+            }
+            else
+            {
+                Log.verbose("(compare-tables) no changes found\n");
+                System.exit(0);
             }
             return;
         }
 
-        System.out.println("sqlcomp: Unknown command "+args[0]);
+        Log.usageError("sqlcomp: Unknown command "+cmd+"\n");
         System.exit(1);
     }
 
@@ -139,12 +160,13 @@ public class Main
 
         if (url == null || url.trim().equals(""))
         {
-            System.out.println("Please provide the following env variables:\n"+
-                               prefix+"_NAME=MySourceDB\n"+
-                               prefix+"_DB_URL=jdbc:postgresql://localhost/fromcomp\n"+
-                               prefix+"_DB_USER=testuser\n"+
-                               prefix+"_DB_PWD=asecret\n"+
-                               prefix+"_DB_SCHEMA=");
+            Log.info("sqlcomp: please provide the following env variables:\n"+
+                     prefix+"_NAME=MySourceDB\n"+
+                     prefix+"_DB_URL=jdbc:postgresql://localhost/fromcomp\n"+
+                     prefix+"_DB_USER=testuser\n"+
+                     prefix+"_DB_PWD=asecret\n"+
+                     prefix+"_DB_SCHEMA=\n"+
+                     prefix+"_DB_IGNORED_TABLES=");
             System.exit(1);
         }
 
@@ -160,24 +182,25 @@ public class Main
 
     static void printHelp()
     {
-        System.out.println("""
-                           Usage: sqlcomp [command]
+        Log.info("""
+                 Usage: sqlcomp [command]
 
-                           Available commands:
-                           compare-tables
-                           sync-data
-                           stream-data
-                           show-source-tables
-                           show-sink-tables
-                           """);
+                 Available commands:
+                 compare-tables
+                 compare-data
+                 sync-data
+                 stream-data
+                 show-source-tables
+                 show-sink-tables
+                 """);
     }
 
     static void sync(String table, boolean dryrun)
     {
-        System.out.println(Util.timestamp()+ " Sync started ["+table+"] "
+        Log.verbose("(sync-data) start table ["+table+"] "
                            +System.getenv("SQLCOMP_SOURCE_NAME")
                            +" --> "
-                           +System.getenv("SQLCOMP_SINK_NAME"));
+                           +System.getenv("SQLCOMP_SINK_NAME")+"\n");
 
         Database source = useEnvWithPrefix("SQLCOMP_SOURCE", table);
         Database sink   = useEnvWithPrefix("SQLCOMP_SINK", table);
@@ -188,16 +211,26 @@ public class Main
             Table t = source.table(table);
             if (t == null)
             {
-                System.out.println("sqlcomp: Unknown source table "+table);
+                Log.error("sqlcomp: Unknown source table "+table+"\n");
                 System.exit(1);
             }
             SyncData sync = new SyncData();
             sync.syncData(source, sink, t.name(), "", dryrun);
 
-            System.out.println(Util.timestamp()+" Sync completed ["+table+"] "
-                               +System.getenv("SQLCOMP_SOURCE_NAME")
-                               +" --> "
-                               +System.getenv("SQLCOMP_SINK_NAME"));
+            Log.verbose("(sync-data) stop sync ["+table+"] "
+                        +System.getenv("SQLCOMP_SOURCE_NAME")
+                        +" --> "
+                        +System.getenv("SQLCOMP_SINK_NAME")+"\n");
+
+            try
+            {
+                source.db().close();
+                sink.db().close();
+            }
+            catch (java.sql.SQLException e)
+            {
+                e.printStackTrace();
+            }
 
             return;
         }
@@ -214,19 +247,39 @@ public class Main
             if (t.hasIntegerPrimaryKey())
             {
                 // Skip tables with bad primary keys
-                sync.syncData(source, sink, t.name(), ""+i+"/"+tables.size()+" ", dryrun);
+                String step;
+                if (tables.size() < 100)
+                {
+                    step = String.format("%02d/%02d ", i, tables.size());
+                }
+                else
+                {
+                    step = String.format("%03d/%03d ", i, tables.size());
+                }
+
+                sync.syncData(source, sink, t.name(), step, dryrun);
             }
             else
             {
-                System.out.println("WARNING: Skipping table "+t.name()+" because primary key is not an integer. ("+t.primaryKey()+")");
+                Log.warning("(sync-data) skipping table "+t.name()+" because primary key is not an integer. ("+t.primaryKey()+")\n");
             }
             i++;
         }
 
-        System.out.println(Util.timestamp()+" Sync completed ["+table+"] "
-                           +System.getenv("SQLCOMP_SOURCE_NAME")
-                           +" --> "
-                           +System.getenv("SQLCOMP_SINK_NAME"));
+        Log.verbose("(sync-data) complete ["+table+"] "
+                    +System.getenv("SQLCOMP_SOURCE_NAME")
+                    +" --> "
+                    +System.getenv("SQLCOMP_SINK_NAME")+"\n");
+
+        try
+        {
+            source.db().close();
+            sink.db().close();
+        }
+        catch (java.sql.SQLException e)
+        {
+            e.printStackTrace();
+        }
     }
 
     static void showTables(Database d)
@@ -239,10 +292,10 @@ public class Main
         for (Table t : tables)
         {
             String nr = ""+i+"/"+num;
-            System.out.println(nr+" "+Util.rightPad(t.name(), d.maxTableNameLength(), ' ')
-                               +"  "+Util.rightPad(Util.sizeHR(1024*t.approxDiskSizeKB()),15,' ')
-                               +"  "+Util.rightPad(t.approxNumRows()+" c.rows ",15,' ')
-                               +" ("+t.primaryKey()+")");
+            Log.info(nr+" "+Util.rightPad(t.name(), d.maxTableNameLength(), ' ')
+                     +"  "+Util.rightPad(Util.sizeHR(1024*t.approxDiskSizeKB()),15,' ')
+                     +"  "+Util.rightPad(t.approxNumRows()+" c.rows ",15,' ')
+                     +" ("+t.primaryKey()+")\n");
             i++;
         }
     }

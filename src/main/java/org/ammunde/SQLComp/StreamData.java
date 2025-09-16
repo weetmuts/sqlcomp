@@ -51,7 +51,7 @@ public class StreamData
     public StreamData(Database source, Database sink)
     {
         source_ = source;
-        sink_ = sink;
+        sink_   = sink;
         sync_ = new SyncData();
     }
 
@@ -78,38 +78,48 @@ public class StreamData
             client.registerLifecycleListener(new BinaryLogClient.LifecycleListener() {
                 @Override
                 public void onConnect(BinaryLogClient client) {
-                    System.out.println("✅ Connected to MySQL binlog");
+                    Log.verbose("(stream-data) ✅ connected to binlog\n");
                 }
 
                 @Override
                 public void onCommunicationFailure(BinaryLogClient client, Exception ex) {
-                    System.out.println("⚠️ Communication failure: " + ex.getMessage());
+                    Log.error("(stream-data) ⚠️  communication failure: " + ex.getMessage()+"\n");
                 }
 
                 @Override
                 public void onEventDeserializationFailure(BinaryLogClient client, Exception ex) {
-                    System.out.println("⚠️ Event deserialization failure: " + ex.getMessage());
+                    Log.error("(stream-data) ⚠️  event deserialization failure: " + ex.getMessage()+"\n");
                 }
 
                 @Override
                 public void onDisconnect(BinaryLogClient client) {
-                    System.out.println("❌ Disconnected from MySQL binlog");
+                    Log.error("(stream-data) ❌ disconnected from binlog\n");
                 }
             });
 
 
             try {
-                System.out.println("Connecting to MySQL binlog...");
+                Log.verbose("(stream-data) connecting to binlog...\n");
                 client.connect(20000); // forking call.
             } catch (IOException e) {
-                System.err.println("Binlog connection failed: " + e.getMessage());
                 e.printStackTrace();
+                Log.error("(stream-data) binlog connection failed: " + e.getMessage()+"\n");
             }
+
+            while (true)
+            {
+                source_.db().keepalive();
+                sink_.db().keepalive();
+
+                try { Thread.sleep(60000); } catch (InterruptedException e) { }
+                // Stream until interrupted.
+            }
+
         }
         catch (Exception e)
         {
             e.printStackTrace();
-            Log.error("Failed to stream data! ");
+            Log.error("(stream-data) failure\n");
             System.exit(1);
         }
     }
@@ -126,7 +136,7 @@ public class StreamData
             else if (type == EventType.DELETE_ROWS || type == EventType.EXT_DELETE_ROWS) handleDelete(event);
             else
             {
-                // System.out.println("EVENT "+event);
+                Log.debug("(stream-data) EVENT "+event+"\n");
             }
         }
         catch (Exception e)
@@ -148,19 +158,22 @@ public class StreamData
 
         if (!table_data.getDatabase().equals(source_.db().dbName()))
         {
-            System.out.println("Ignoring "+table_data.getDatabase());
+            Log.verbose("Ignoring event from "+table_data.getDatabase()+"\n");
             return;
         }
         Table source_table = source_.table(table_data.getTable());
         if (source_table == null)
         {
-            System.out.println("Could not find source table: "+table_data.getTable());
+            if (!sink_.db().ignored(table_data.getTable().toLowerCase()))
+            {
+                Log.verbose("(stream-data) unknown source table: "+table_data.getTable()+"\n");
+            }
             return;
         }
         Table sink_table = sink_.table(table_data.getTable());
         if (sink_table == null)
         {
-            System.out.println("\n\nWARNING STREAM Could not find sink table: "+table_data.getTable()+" Please create!\n");
+            Log.warning("(stream-data) could not find sink table: "+table_data.getTable()+" Please create!\n");
             return;
         }
         List<Serializable[]> rows = data.getRows();
@@ -183,19 +196,22 @@ public class StreamData
 
         if (!table_data.getDatabase().equals(source_.db().dbName()))
         {
-            System.out.println("Ignoring "+table_data.getDatabase());
+            Log.verbose("(stream-data) ignoring "+table_data.getDatabase()+"\n");
             return;
         }
         Table source_table = source_.table(table_data.getTable());
         if (source_table == null)
         {
-            System.out.println("Could not find source table: "+table_data.getTable());
+            if (!sink_.db().ignored(table_data.getTable().toLowerCase()))
+            {
+                Log.warning("(stream-data) unknown source table: "+table_data.getTable()+"\n");
+            }
             return;
         }
         Table sink_table = sink_.table(table_data.getTable());
         if (sink_table == null)
         {
-            System.out.println("Could not find sink table: "+table_data.getTable());
+            Log.warning("(stream-data) could not find sink table: "+table_data.getTable()+" Please create!\n");
             return;
         }
         for (Map.Entry<Serializable[], Serializable[]> row : data.getRows())
@@ -221,19 +237,22 @@ public class StreamData
 
         if (!table_data.getDatabase().equals(source_.db().dbName()))
         {
-            System.out.println("Ignoring "+table_data.getDatabase());
+            Log.verbose("(stream-data) ignoring "+table_data.getDatabase()+"\n");
             return;
         }
         Table source_table = source_.table(table_data.getTable());
         if (source_table == null)
         {
-            System.out.println("Could not find source table: "+table_data.getTable());
+            if (!sink_.db().ignored(table_data.getTable().toLowerCase()))
+            {
+                Log.warning("(stream-data) unknown source table: "+table_data.getTable()+"\n");
+            }
             return;
         }
         Table sink_table = sink_.table(table_data.getTable());
         if (sink_table == null)
         {
-            System.out.println("Could not find sink table: "+table_data.getTable());
+            Log.warning("(stream-data) could not find sink table: "+table_data.getTable()+" Please create!\n");
             return;
         }
 

@@ -126,7 +126,6 @@ public class Database
             e.printStackTrace();
         }
 
-        System.out.print("\33[2K\r");
-        System.out.flush();
+        Log.status("");
     }
 }

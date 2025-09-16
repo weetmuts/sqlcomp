@@ -57,6 +57,12 @@ public class DB
         connect(prefix);
     }
 
+    public void close() throws SQLException
+    {
+        connection_.close();
+        connection_ = null;
+    }
+
     public Connection connection()
     {
         return connection_;
@@ -108,14 +114,27 @@ public class DB
         prefix_ = prefix;
         if (!reconnect())
         {
-            Log.error("Failed second reconnect attempt!");
+            Log.error("(db) failed second reconnect attempt to "+name_+"\n");
             System.exit(1);
         }
 
     }
 
-    public boolean reconnect()
+    public synchronized boolean reconnect()
     {
+        if (connection_ != null)
+        {
+            try
+            {
+                connection_.close();
+            }
+            catch (Exception e)
+            {
+                e.printStackTrace();
+                Log.warning("(db) failed to close "+name_+"\n");
+            }
+            connection_ = null;
+        }
         name_ = System.getenv(prefix_+"_NAME"); // "MySourceDB"
         db_url_ = System.getenv(prefix_+"_DB_URL"); // "jdbc:postgresql://localhost/fromcomp";
         db_name_ = System.getenv(prefix_+"_DB_NAME"); // fromcomp
@@ -151,7 +170,7 @@ public class DB
         catch (Exception e)
         {
             e.printStackTrace();
-            System.out.println("Failed to connect to "+db_url_);
+            Log.error("(db) failed to connect to "+db_url_+"\n");
             last_connection_check_ = 0;
             return false;
         }
@@ -159,23 +178,22 @@ public class DB
         if (type_ == DBType.MYSQL || type_ == DBType.MARIADB)
         {
             String session = performQueryString("SELECT @@session.sql_mode");
-            System.out.println("SESSION SETTINGS "+session);
             if (session.indexOf("ANSI_QUOTES") == -1)
             {
                 session = "ANSI_QUOTES,"+session;
                 performUpdate("SET SESSION SQL_MODE='"+session+"'");
-                System.out.println("NEW SESSION SETTINGS "+session);
             }
+            Log.verbose("(db) "+name_+" session "+session);
 
             // Disable the foreign key checks...not a good solution but necessary
             // for now to be able to update all tables in the wrong order.
-            System.out.println("SET FOREIGN_KEY_CHECKS = 0");
             performUpdate("SET FOREIGN_KEY_CHECKS = 0");
+            Log.verbose("(db) "+name_+" session SET FOREIGN_KEY_CHECKS = 0");
         }
         return true;
     }
 
-    public PreparedStatement prepare(String query, Object[] args)
+    public synchronized PreparedStatement prepare(String query, Object[] args)
     {
         try
         {
@@ -227,7 +245,7 @@ public class DB
         return null;
     }
 
-    public void verifyConnection()
+    public synchronized void verifyConnection()
     {
         // If a successful check was done less than 60 seconds ago, skip this.
         if (last_connection_check_ + 60*1000 < System.currentTimeMillis()) return;
@@ -240,11 +258,11 @@ public class DB
             }
             else
             {
-                System.out.println(Util.timestamp()+" Failure connection check "+name_+"\n\n");
+                Log.warning("(db) fail connection check to "+name_+"\n");
                 // Try to open again. One test only, give up if it fails.
                 if (!reconnect())
                 {
-                    Log.error("Failed second reconnect attempt!");
+                    Log.error("(db) failed second reconnect attempt to "+name_+" giving up.\n");
                     System.exit(1);
                 }
             }
@@ -252,17 +270,17 @@ public class DB
         catch (SQLException e)
         {
             e.printStackTrace();
-            System.out.println(Util.timestamp()+" Failure connection check "+name_+"\n\n");
+            Log.warning("(db) fail connection check to "+name_+"\n");
             // Try to open again. One test only, give up if it fails.
             if (!reconnect())
             {
-                Log.error("Failed second reconnect attempt!");
+                Log.error("(db) failed second reconnect attempt to "+name_+" giving up.\n");
                 System.exit(1);
             }
         }
     }
 
-    public int performQuery(ResultCallback cb, String query, Object... args)
+    public synchronized int performQuery(ResultCallback cb, String query, Object... args)
     {
         int n = 0;
 
@@ -286,7 +304,7 @@ public class DB
     }
 
     // The select must never return -1, since that means no data found.
-    public int performQueryInt(String query, Object... args)
+    public synchronized int performQueryInt(String query, Object... args)
     {
         verifyConnection();
 
@@ -306,7 +324,7 @@ public class DB
         return -1;
     }
 
-    public String performQueryString(String query, Object... args)
+    public synchronized String performQueryString(String query, Object... args)
     {
         verifyConnection();
 
@@ -326,7 +344,7 @@ public class DB
         return null;
     }
 
-    public List<String> performQueryStrings(String query, Object... args)
+    public synchronized List<String> performQueryStrings(String query, Object... args)
     {
         verifyConnection();
 
@@ -348,7 +366,7 @@ public class DB
         return l;
     }
 
-    public List<Integer> performQueryInts(String query, Object... args)
+    public synchronized List<Integer> performQueryInts(String query, Object... args)
     {
         verifyConnection();
 
@@ -370,13 +388,13 @@ public class DB
         return l;
     }
 
-    public int performUpdate(String query, List<Object> args)
+    public synchronized int performUpdate(String query, List<Object> args)
     {
         Object[] argss = args.toArray(new Object[0]);
         return performUpdate(query, argss);
     }
 
-    public int performUpdate(String query, Object... args)
+    public synchronized int performUpdate(String query, Object... args)
     {
         int n = 0;
 
@@ -394,6 +412,24 @@ public class DB
         return n;
     }
 
+    public synchronized int performSyncUpdate(String query, Object... args)
+    {
+        int n = 0;
+
+        verifyConnection();
+
+        try (PreparedStatement stmnt = prepare(query, args))
+        {
+            stmnt.executeUpdate();
+        }
+        catch(Exception e)
+        {
+            Log.syncError("ERROR "+e+"\n"+query+"\n\n");
+        }
+
+        return n;
+    }
+
     public String quoteTableName(String t)
     {
         if (type_ == DBType.SQLSERVER) return "["+t+"]";
@@ -405,6 +441,38 @@ public class DB
     public boolean ignored(String table)
     {
         return ignored_tables_.contains(table);
+    }
+
+    public synchronized void keepalive()
+    {
+        int v = 0;
+        boolean retry = false;
+        int retries = 0;
+
+        do {
+            Log.debug("(db) keepalive "+name_+"\n");
+            try
+            {
+                retry = false;
+                v = performQueryInt("select 1+2+3;");
+                if (v != 6)
+                {
+                    throw new Exception("Expected 6 but got "+v);
+                }
+            }
+            catch (Exception e)
+            {
+                if (retries > 5)
+                {
+                    Log.error("(db) five keepalive reconnects attempts to "+name_+" failed! Giving up!\n");
+                    System.exit(1);
+                }
+                e.printStackTrace();
+                retries++;
+                retry = true;
+                reconnect();
+            }
+        } while (retry);
     }
 
 }

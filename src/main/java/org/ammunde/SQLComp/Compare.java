@@ -48,27 +48,32 @@ public class Compare
 
     public static boolean compareTables(Database from, Database to)
     {
+        boolean change_detected = false;
+
         Set<String> f = new HashSet<>();
+        for (String s : from.tableNames()) f.add(s.toLowerCase());
         f.addAll(from.tableNames());
         Set<String> t = new HashSet<>();
-        t.addAll(to.tableNames());
+        for (String s : to.tableNames()) t.add(s.toLowerCase());
 
         for (String s : to.tableNames())
         {
-            if (!f.contains(s))
+            if (!f.contains(s.toLowerCase()))
             {
-                System.out.println("DROP TABLE "+to.db().schemaPrefix()+s+";");
+                Log.info("DROP TABLE "+to.db().schemaPrefix()+s+";\n");
+                change_detected = true;
             }
         }
         for (String s : from.tableNames())
         {
-            if (!t.contains(s))
+            if (!t.contains(s.toLowerCase()))
             {
                 Table table = from.table(s);
                 table.printCreate();
+                change_detected = true;
             }
         }
-        return false;
+        return change_detected;
     }
 
     public static List<String> inBoth(List<String> from, List<String> to)
@@ -87,6 +92,8 @@ public class Compare
 
     public static boolean tableDefinition(Table from, Table to)
     {
+        boolean change_detected = false;
+
         Set<String> from_colums = new HashSet<>();
         Set<String> to_colums = new HashSet<>();
 
@@ -95,13 +102,11 @@ public class Compare
 
         if (!from_colums.equals(to_colums))
         {
-            System.out.println("SOURCE "+from.name()+" "+from.print());
-            System.out.println("SINK   "+to.name()+" "+to.print());
+            Log.info("SOURCE "+from.name()+" "+from.print()+"\n");
+            Log.info("SINK   "+to.name()+" "+to.print()+"\n");
+            change_detected = true;
         }
 
-        return true;
+        return change_detected;
     }
-
-
-
 }
