@@ -267,7 +267,7 @@ public class Table
         }
         if (primary_key_ == null)
         {
-            Log.error("Table "+name_+" must have a primary key. SLQComp cannot handle tables without a primary key. Sorry.");
+            Log.error("Table "+name_+" must have a primary key. SLQComp cannot handle tables without a primary key. Sorry.\n");
             System.exit(1);
         }
     }
@@ -480,7 +480,7 @@ public class Table
             return s;
         }
 
-        Log.error("Unsupported SQL type "+t);
+        Log.error("Unsupported SQL type "+t+"\n");
         System.exit(1);
 
         return null;

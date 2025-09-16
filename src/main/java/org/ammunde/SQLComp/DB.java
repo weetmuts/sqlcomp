@@ -183,12 +183,12 @@ public class DB
                 session = "ANSI_QUOTES,"+session;
                 performUpdate("SET SESSION SQL_MODE='"+session+"'");
             }
-            Log.verbose("(db) "+name_+" session "+session);
+            Log.verbose("(db) "+name_+" session "+session+"\n");
 
             // Disable the foreign key checks...not a good solution but necessary
             // for now to be able to update all tables in the wrong order.
             performUpdate("SET FOREIGN_KEY_CHECKS = 0");
-            Log.verbose("(db) "+name_+" session SET FOREIGN_KEY_CHECKS = 0");
+            Log.verbose("(db) "+name_+" session SET FOREIGN_KEY_CHECKS = 0\n");
         }
         return true;
     }
