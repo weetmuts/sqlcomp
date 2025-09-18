@@ -27,9 +27,26 @@ import java.util.Date;
 import java.util.TimeZone;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
+import java.time.LocalTime;
+import java.time.ZoneId;
 
 public class Util
 {
+    private static String timezone_;
+
+    public static LocalTime localTime()
+    {
+        if (timezone_ == null)
+        {
+            timezone_ = System.getenv("SQLCOMP_TIMEZONE");
+            if (timezone_ == null)
+            {
+                timezone_ = "Europe/Stockholm";
+            }
+        }
+        return  LocalTime.now(ZoneId.of(timezone_));
+    }
+
     public static String secondsToHR(long seconds)
     {
         long hours = seconds/3600;
