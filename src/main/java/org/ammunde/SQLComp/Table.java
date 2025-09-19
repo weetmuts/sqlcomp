@@ -51,6 +51,7 @@ public class Table
     private long approx_num_rows_;
     private long approx_disk_size_kb_;
     private boolean has_integer_primary_key_;
+    private Status status_;
 
     public Table(DB db, String name)
     {
@@ -68,9 +69,34 @@ public class Table
         Log.prefixNewline(false);
     }
 
+    public void track(Status s)
+    {
+        status_ = s;
+    }
+
     public DB db()
     {
         return db_;
+    }
+
+    public void incInserts()
+    {
+        if (status_ != null) status_.incInserts(this);
+    }
+
+    public void incUpdates()
+    {
+        if (status_ != null) status_.incUpdates(this);
+    }
+
+    public void incDeletes()
+    {
+        if (status_ != null) status_.incDeletes(this);
+    }
+
+    public void incFailures()
+    {
+        if (status_ != null) status_.incFailures(this);
     }
 
     public String name()

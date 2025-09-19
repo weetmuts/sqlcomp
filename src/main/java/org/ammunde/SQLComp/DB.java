@@ -412,7 +412,7 @@ public class DB
         return n;
     }
 
-    public synchronized int performSyncUpdate(String query, Object... args)
+    public synchronized int performSyncUpdate(Table tt, String query, Object... args)
     {
         int n = 0;
 
@@ -425,6 +425,7 @@ public class DB
         catch(Exception e)
         {
             Log.syncError("ERROR "+e+"\n"+query+"\n\n");
+            tt.incFailures();
         }
 
         return n;

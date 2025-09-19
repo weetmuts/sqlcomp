@@ -39,11 +39,31 @@ public class Database
     private List<String> table_names_;
     private Map<String,Table> name_to_table_;
     private int max_table_name_length_;
+    private Status status_;
 
     public Database(String prefix, String table_pattern)
     {
         db_ = new DB(prefix);
         loadTables(table_pattern);
+    }
+
+    public void track(Status s)
+    {
+        status_ = s;
+        for (Table t : tables_) t.track(s);
+    }
+
+    public void monitor(Table table, String status)
+    {
+        if (status_ != null)
+        {
+            status_.monitor(table, status);
+        }
+    }
+
+    public void writeStatus()
+    {
+        if (status_ != null) status_.writeStatus();
     }
 
     public List<Table> tables()
@@ -117,6 +137,7 @@ public class Database
             for (String n : table_names_)
             {
                 Table t = new Table(db(), n);
+                if (status_ != null) t.track(status_);
                 tables_.add(t);
                 name_to_table_.put(n.toLowerCase(), t);
             }

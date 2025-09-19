@@ -23,6 +23,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package org.ammunde.SQLComp;
 
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Iterator;
@@ -62,50 +63,32 @@ public class Main
 
         if (cmd.equals("stream-data"))
         {
-            String table_pattern = "";
-            if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
+            Status status = new Status("stream-data");
+            stream_data(args, status);
+            repeat_sync_data(args, status);
+        }
 
-            if (!table_pattern.equals("")) Log.verbose("(stream-data) streaming "+table_pattern+"\n");
-            else Log.verbose("(stream-data) streaming all tables\n");
-
-            Database source = useEnvWithPrefix("SQLCOMP_SOURCE", table_pattern);
-            Database sink   = useEnvWithPrefix("SQLCOMP_SINK", table_pattern);
-
-            StreamData stream = new StreamData(source, sink);
-
-            Thread thread = new Thread(stream::go);
-            thread.start();
-
-            sync(table_pattern, false);
-
-            // Stream forever.
+        if (cmd.equals("stream-data-no-sync"))
+        {
+            Status status = new Status("stream-data-no-sync");
+            stream_data(args, status);
             while (true)
             {
                 try { Thread.sleep(10000); } catch (InterruptedException e) { }
-                LocalTime now = LocalTime.now();
-                if (now.getHour() == 3 && now.getMinute() == 0)
-                {
-                    Log.verbose("(stream-data) nightly sync started\n");
-                    sync(table_pattern, false);
-                }
-                // Do not try to sync again during this minutes. Only relevant
-                // if you have a really small database.
-                while (now.getHour() == 3 && now.getMinute() == 0)
-                {
-                    try { Thread.sleep(10000); } catch (InterruptedException e) { }
-                }
             }
         }
 
         if (cmd.equals("sync-data"))
         {
+            Status status = new Status("sync-data");
+
             String table_pattern = ""; // Default is all tables
             if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
 
             if (!table_pattern.equals("")) Log.verbose("(sync-data) "+table_pattern+"\n");
             else Log.verbose("(sync-data) all tables\n");
 
-            sync(table_pattern, false);
+            sync(table_pattern, false, status);
             return;
         }
 
@@ -117,7 +100,7 @@ public class Main
             if (!table_pattern.equals("")) Log.verbose("(compare-data) "+table_pattern+"\n");
             else Log.verbose("(comapare-data) all tables\n");
 
-            sync(table_pattern, true);
+            sync(table_pattern, true, null);
             return;
         }
 
@@ -195,29 +178,30 @@ public class Main
                  """);
     }
 
-    static void sync(String table, boolean dryrun)
+    static void sync(String table_pattern, boolean dryrun, Status status)
     {
-        Log.verbose("(sync-data) start table ["+table+"] "
+        Log.verbose("(sync-data) start table ["+table_pattern+"] "
                            +System.getenv("SQLCOMP_SOURCE_NAME")
                            +" --> "
                            +System.getenv("SQLCOMP_SINK_NAME")+"\n");
 
-        Database source = useEnvWithPrefix("SQLCOMP_SOURCE", table);
-        Database sink   = useEnvWithPrefix("SQLCOMP_SINK", table);
+        Database source = useEnvWithPrefix("SQLCOMP_SOURCE", table_pattern);
+        Database sink   = useEnvWithPrefix("SQLCOMP_SINK", table_pattern);
 
+        sink.track(status);
 
-        if (table.length() > 0)
+        if (table_pattern.length() > 0)
         {
-            Table t = source.table(table);
+            Table t = source.table(table_pattern);
             if (t == null)
             {
-                Log.error("sqlcomp: Unknown source table "+table+"\n");
+                Log.error("sqlcomp: Unknown source table "+table_pattern+"\n");
                 System.exit(1);
             }
             SyncData sync = new SyncData();
             sync.syncData(source, sink, t.name(), "", dryrun);
 
-            Log.verbose("(sync-data) stop sync ["+table+"] "
+            Log.verbose("(sync-data) stop sync ["+table_pattern+"] "
                         +System.getenv("SQLCOMP_SOURCE_NAME")
                         +" --> "
                         +System.getenv("SQLCOMP_SINK_NAME")+"\n");
@@ -266,7 +250,7 @@ public class Main
             i++;
         }
 
-        Log.verbose("(sync-data) complete ["+table+"] "
+        Log.verbose("(sync-data) complete ["+table_pattern+"] "
                     +System.getenv("SQLCOMP_SOURCE_NAME")
                     +" --> "
                     +System.getenv("SQLCOMP_SINK_NAME")+"\n");
@@ -297,6 +281,58 @@ public class Main
                      +"  "+Util.rightPad(t.approxNumRows()+" c.rows ",15,' ')
                      +" ("+t.primaryKey()+")\n");
             i++;
+        }
+    }
+
+    static void stream_data(String[] args, Status status)
+    {
+        String table_pattern = "";
+        if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
+
+        if (!table_pattern.equals("")) Log.verbose("(stream-data) streaming "+table_pattern+"\n");
+        else Log.verbose("(stream-data) streaming all tables\n");
+
+        Database source = useEnvWithPrefix("SQLCOMP_SOURCE", table_pattern);
+        Database sink   = useEnvWithPrefix("SQLCOMP_SINK", table_pattern);
+        sink.track(status);
+
+        StreamData stream = new StreamData(source, sink);
+
+        Thread thread = new Thread(stream::go);
+        thread.start();
+    }
+
+    static void repeat_sync_data(String[] args, Status status)
+    {
+        String table_pattern = "";
+        if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
+
+        if (!table_pattern.equals("")) Log.verbose("(repeat-sync-data) "+table_pattern+"\n");
+        else Log.verbose("(repeat-sync-data) streaming all tables\n");
+
+        status.clearStats();
+        sync(table_pattern, false, status);
+        status.batchDone();
+
+        // Stream forever.
+        while (true)
+        {
+            try { Thread.sleep(10000); } catch (InterruptedException e) { }
+
+            LocalTime now = Util.localTime();
+            if (now.getHour() == 3 && now.getMinute() == 0)
+            {
+                Log.verbose("(stream-data) nightly sync started\n");
+                status.clearStats();
+                sync(table_pattern, false, status);
+                status.batchDone();
+            }
+            // Do not try to sync again during this minutes. Only relevant
+            // if you have a really small database.
+            while (now.getHour() == 3 && now.getMinute() == 0)
+            {
+                try { Thread.sleep(10000); } catch (InterruptedException e) { }
+            }
         }
     }
 }

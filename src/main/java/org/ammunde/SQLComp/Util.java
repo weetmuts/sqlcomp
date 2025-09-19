@@ -92,7 +92,8 @@ public class Util
 
     public static String timestamp()
     {
-        TimeZone tz = TimeZone.getTimeZone("UTC");
+        localTime();
+        TimeZone tz = TimeZone.getTimeZone(timezone_);
         DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'");
         df.setTimeZone(tz);
         return df.format(new Date());

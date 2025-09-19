@@ -31,6 +31,8 @@ import java.util.Collections;
 public class SyncData
 {
     String table_;
+    Table sink_table_;
+    Database sink_;
     long start_;
     long total_rows_;
     long count_rows_;
@@ -82,11 +84,15 @@ public class SyncData
 
         if (count_rows_ < total_rows_)
         {
-            return info_+Util.rightPad(table_, max_table_name_length_, ' ')+": "+p+"% ("+count_rows_+"/"+total_rows_+" pk\""+last_primary_key_+"\") "+speed+info+" | "+time;
+            String s = info_+Util.rightPad(table_, max_table_name_length_, ' ')+": "+p+"% ("+count_rows_+"/"+total_rows_+" pk\""+last_primary_key_+"\") "+speed+info+" | "+time;
+            sink_.monitor(sink_table_, s);
+            return s;
         }
         else
         {
-            return info_+Util.rightPad(table_, max_table_name_length_, ' ')+": "+p+"% ("+count_rows_+"/"+total_rows_+") "+speed+info+" | "+time;
+            String s = info_+Util.rightPad(table_, max_table_name_length_, ' ')+": "+p+"% ("+count_rows_+"/"+total_rows_+") "+speed+info+" | "+time;
+            sink_.monitor(sink_table_, s);
+            return s;
         }
     }
 
@@ -107,6 +113,7 @@ public class SyncData
     {
         info_ = info;
         table_ = table;
+        sink_ = to;
         start_ = System.currentTimeMillis();
         count_rows_ = 0;
         count_inserts_ = 0;
@@ -115,6 +122,7 @@ public class SyncData
 
         Table ft = from.table(table);
         Table tt = to.table(table);
+        sink_table_ = tt;
 
         max_table_name_length_ = from.maxTableNameLength();
 
@@ -226,6 +234,7 @@ public class SyncData
                         else if (stream) Log.verbose("(stream-data) "+u+"\n");
                         else Log.verbose("sync-data) "+u+"\n");
                         num_updates++;
+                        tt.incUpdates();
                     }
                     else
                     {
@@ -239,6 +248,7 @@ public class SyncData
                     if (num_deletes > 0) deletes.append(",");
                     deletes.append(t.pk());
                     num_deletes++;
+                    tt.incDeletes();
                     j++;
                 }
                 else if (f.pk() < t.pk())
@@ -246,6 +256,7 @@ public class SyncData
                     if (num_inserts > 0) inserts.append(",");
                     num_inserts++;
                     inserts.append("("+f.commaCols()+")");
+                    tt.incInserts();
                     i++;
                 }
             }
@@ -253,8 +264,8 @@ public class SyncData
             {
                 if (num_inserts > 0) inserts.append(",");
                 num_inserts++;
-
                 inserts.append("("+f.commaCols()+")");
+                tt.incInserts();
                 i++;
             }
             else if (f == null && t != null)
@@ -262,6 +273,7 @@ public class SyncData
                 if (num_deletes > 0) deletes.append(",");
                 deletes.append(t.pk());
                 num_deletes++;
+                tt.incDeletes();
                 j++;
             }
             else
@@ -276,12 +288,12 @@ public class SyncData
             if (dryrun) Log.info(ins+"\n");
             else if (stream) Log.verbose("(stream-data) "+ins+"\n");
             // Do not print batch inserts, too many of them.
-            if (!dryrun) tt.db().performSyncUpdate(ins);
+            if (!dryrun) tt.db().performSyncUpdate(tt, ins);
         }
 
         if (num_updates > 0)
         {
-            if (!dryrun) tt.db().performSyncUpdate(updates.toString());
+            if (!dryrun) tt.db().performSyncUpdate(tt, updates.toString());
         }
 
         if (num_deletes > 0)
@@ -291,7 +303,7 @@ public class SyncData
             if (dryrun) Log.info(d+"\n");
             else if (stream) Log.verbose("(stream-data) "+d+"\n");
             else Log.verbose("(sync-data) "+d+"\n");
-            if (!dryrun) tt.db().performSyncUpdate(d);
+            if (!dryrun) tt.db().performSyncUpdate(tt, d);
         }
 
         addCounts(from_rows.size(), num_inserts, num_updates, num_deletes, chunk.from());

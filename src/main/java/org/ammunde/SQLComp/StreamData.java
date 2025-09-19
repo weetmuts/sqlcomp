@@ -111,7 +111,9 @@ public class StreamData
                 source_.db().keepalive();
                 sink_.db().keepalive();
 
-                try { Thread.sleep(60000); } catch (InterruptedException e) { }
+                sink_.writeStatus();
+
+                try { Thread.sleep(5000); } catch (InterruptedException e) { }
                 // Stream until interrupted.
             }
 
