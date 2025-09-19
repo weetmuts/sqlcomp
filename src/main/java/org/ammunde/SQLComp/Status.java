@@ -168,10 +168,12 @@ public class Status
             html.append("<tr>");
             html.append("<td>"+t.lcName()+"</td>");
             html.append("<td>");
-            html.append(table_stats_.get(t.lcName()).toHTML());
+            Stats st = table_stats_.get(t.lcName());
+            if (st != null) html.append(st.toHTML());
             html.append("</td>");
             html.append("<td>");
-            html.append(table_monitor_.get(t.lcName()));
+            String m = table_monitor_.get(t.lcName());
+            if (m != null) html.append(m);
             html.append("</td>");
             html.append("</tr>\n");
         }
