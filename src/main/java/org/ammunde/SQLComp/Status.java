@@ -39,6 +39,7 @@ public class Status
     Map<String,Table> tables_ = new TreeMap<>();
     Map<String,Stats> table_stats_ = new TreeMap<>();
     Map<String,String> table_monitor_ = new TreeMap<>();
+    String last_stream_ = "";
     String last_batch_done_ = "";
 
     public Status(String p)
@@ -78,27 +79,32 @@ public class Status
     public synchronized void batchDone()
     {
         table_stats_ = new TreeMap<>();
+        last_stream_ = "";
         last_batch_done_ = Util.timestamp();
     }
 
     public synchronized void incInserts(Table table)
     {
         get(table).inserts++;
+        last_stream_ = Util.timestamp();
     }
 
     public synchronized void incUpdates(Table table)
     {
         get(table).updates++;
+        last_stream_ = Util.timestamp();
     }
 
     public synchronized void incDeletes(Table table)
     {
         get(table).deletes++;
+        last_stream_ = Util.timestamp();
     }
 
     public synchronized void incFailures(Table table)
     {
         get(table).failures++;
+        last_stream_ = Util.timestamp();
     }
 
     public void writeStatus()
@@ -149,7 +155,7 @@ public class Status
         html.append("<table>\n");
         html.append("<tr>");
         html.append("<th>Name</td>");
-        html.append("<th>&nbsp;&nbsp;today&nbsp;&nbsp;</td>");
+        html.append("<th>&nbsp;&nbsp;today "+last_stream_+"&nbsp;&nbsp;</td>");
         html.append("<th>night batch done "+last_batch_done_+"</td>");
         html.append("</tr>\n");
 
