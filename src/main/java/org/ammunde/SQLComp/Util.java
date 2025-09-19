@@ -94,7 +94,7 @@ public class Util
     {
         localTime();
         TimeZone tz = TimeZone.getTimeZone(timezone_);
-        DateFormat df = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'");
+        DateFormat df = new SimpleDateFormat("yyyy-MM-dd'_'HH:mm");
         df.setTimeZone(tz);
         return df.format(new Date());
     }
