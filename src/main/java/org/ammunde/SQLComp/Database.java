@@ -107,16 +107,24 @@ public class Database
             DatabaseMetaData meta = db().connection().getMetaData();
             String s = null;
             if (db().schema() != null && db().schema().length() > 0) s = db().schema();
+            // SQL Server should use dbo if no schema is supplied.
+            if (s == null && db().dbType() == DBType.SQLSERVER) s = "dbo";
+
             String d = null;
             if (db().dbName() != null && db().dbName().length() > 0) d = db().dbName();
             // SQL Server does not accept a catalog (aka database) name here....
-            if (db().type().equals("SQLSERVER")) d = null;
+            if (db().dbType() == DBType.SQLSERVER) d = null;
+
+            Log.verbose("(database) reading meta data for catalog="+d+" schema="+s+"\n");
 
             try (ResultSet tables = meta.getTables(d, s, "%", new String[] { "TABLE" }))
             {
                 while (tables.next())
                 {
                     String name = tables.getString("TABLE_NAME");
+                    String catalog = tables.getString("TABLE_CAT");
+                    String schema = tables.getString("TABLE_SCHEM");
+                    Log.verbose("(database) reading table "+name+" catalog="+catalog+" schema="+schema+"\n");
                     // Sequelize used to store the Table with real hardcoded
                     // uppercase characters. Very annoying. Match agains lower case here.
                     String lower_name = name.toLowerCase();

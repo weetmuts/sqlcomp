@@ -34,7 +34,6 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Collections;
-import java.text.Normalizer;
 
 public class Table
 {
@@ -204,10 +203,14 @@ public class Table
             DatabaseMetaData meta = db().connection().getMetaData();
             String s = null;
             if (db().schema() != null && db().schema().length() > 0) s = db().schema();
+            // SQL Server should use dbo if no schema is supplied.
+            if (s == null && db().dbType() == DBType.SQLSERVER) s = "dbo";
+
             String d = null;
             if (db().dbName() != null && db().dbName().length() > 0) d = db().dbName();
             // SQL Server does not accept a catalog (aka database) name here....
-            if (db().type().equals("SQLSERVER")) d = null;
+            if (db().dbType() == DBType.SQLSERVER) d = null;
+
 
             try (ResultSet cols = meta.getColumns(d, s, name_, "%"))
             {
@@ -217,8 +220,11 @@ public class Table
                     String name = cols.getString("COLUMN_NAME");
                     int type = cols.getInt("DATA_TYPE");
                     String type_name = cols.getString("TYPE_NAME");
+                    int column_size = cols.getInt("COLUMN_SIZE");
                     column_names_.add(name);
-                    Column c = new Column(this, name, type, type_name);
+                    boolean not_null = cols.getInt("NULLABLE") == DatabaseMetaData.columnNoNulls;
+                    String default_value = cols.getString("COLUMN_DEF");
+                    Column c = new Column(this, name, type, type_name, not_null, default_value, column_size);
                     columns_.add(c);
                     name_to_column_.put(name, c);
                     if (!first) columns_for_select_ += ",";
@@ -252,7 +258,7 @@ public class Table
             String d = null;
             if (db().dbName() != null && db().dbName().length() > 0) d = db().dbName();
             // SQL Server does not accept a catalog (aka database) name here....
-            if (db().type().equals("SQLSERVER")) d = null;
+            if (db().dbType() == DBType.SQLSERVER) d = null;
 
             try (ResultSet tables = meta.getTables(d, s, name_, new String[] { "TABLE" }))
             {
@@ -300,7 +306,7 @@ public class Table
 
     public void getMetrics()
     {
-        if (db().type() == DBType.MYSQL || db().type() == DBType.MARIADB)
+        if (db().dbType() == DBType.MYSQL || db().dbType() == DBType.MARIADB)
         {
             approx_disk_size_kb_ = db().performQueryInt(
                 "SELECT round((data_length + index_length)/1024,0) AS disk "+
@@ -319,38 +325,28 @@ public class Table
         }
     }
 
-    public String print()
+    public void printCreate(StringBuilder out)
     {
-        StringBuilder out = new StringBuilder();
-        out.append("FALTER ");
-        int n = 0;
-        for (String c : column_names_)
-        {
-            if (n > 0) out.append(",");
-            out.append(c);
-            n++;
-        }
-        out.append(" PRIMARY KEY ("+primary_key_+")");
-        return out.toString();
-    }
+        // No quote here.... we create the table name without quotes so
+        // that a sequelize table SalesForecast table can be referenced as
+        // select * from SalesForecast;
+        // instead of select * from "SalesForecase".
+        out.append("CREATE TABLE "+quotedName()+" (");
 
-    public void printCreate()
-    {
-        Log.info("CREATE TABLE "+name_+" (");
         boolean first = true;
         for (Column c : columns_)
         {
-            if (!first)
-            {
-                Log.info(", ");
-            }
-            else
-            {
-                first = false;
-            }
-            c.printCreate();
+            if (!first) out.append(", ");
+            first = false;
+            c.printDefinition(out);
         }
-        Log.info(", PRIMARY KEY ("+primary_key_+")");
+        out.append(");\n");
+    }
+
+    public void printAlter(StringBuilder out, Table from)
+    {
+        // Find added columns.
+        out.append("ALTER TABLE "+name_+" ");
         Log.info(");\n");
     }
 
@@ -364,6 +360,19 @@ public class Table
             t == java.sql.Types.VARCHAR ||
             t == java.sql.Types.CHAR ||
             t == java.sql.Types.OTHER)
+        {
+            return true;
+        }
+        return false;
+    }
+
+    static boolean useColSize(int t)
+    {
+        if (t == java.sql.Types.LONGNVARCHAR ||
+            t == java.sql.Types.LONGVARCHAR ||
+            t == java.sql.Types.NCHAR ||
+            t == java.sql.Types.NVARCHAR ||
+            t == java.sql.Types.VARCHAR)
         {
             return true;
         }
@@ -413,60 +422,6 @@ public class Table
         return s;
     }
 
-    static String doubleApostrophes(String s)
-    {
-        if (s == null) return s;
-        StringBuilder out = new StringBuilder();
-
-        char p = 0;
-        char c = 0;
-        for (int i=0; i < s.length(); ++i)
-        {
-            p = c;
-            c = s.charAt(i);
-
-            if (c == '\'')
-            {
-                out.append("''");
-                continue;
-            }
-            else if (c == '\\')
-            {
-                out.append("\\\\");
-                continue;
-            }
-            else if (c > 1000)
-            {
-                // Ship zero width space. U+200B
-                continue;
-            }
-            else if (c == '¨' || c == 776)
-            {
-                if (p == 'a') out.append('ä');
-                else if (p == 'o') out.append('ö');
-                else if (p == 'A') out.append('Ä');
-                else if (p == 'O') out.append('Ö');
-                else if (p == 'u') out.append('ü');
-                else if (p == 'U') out.append('Ü');
-                else out.append("?");
-                continue;
-            }
-            else if (c == '°')
-            {
-                if (p == 'a') {
-                    out.append('å');
-                    continue;
-                }
-                // Allow for the use of ° as degrees....  Taklutning 2,5°
-            }
-            // SQL server cannot store čΩ it changes these into c and O.
-            out.append(c);
-        }
-        s = Normalizer.normalize(s, Normalizer.Form.NFC);
-
-        return out.toString();
-    }
-
     static String fixDateTime(String s)
     {
         // 2024-05-21 06:20:21
@@ -488,7 +443,7 @@ public class Table
         if (isText(t))
         {
             if (s == null) return null;
-            return "'"+doubleApostrophes(s)+"'";
+            return "'"+Util.doubleApostrophes(s)+"'";
         }
         if (isDateTime(t))
         {

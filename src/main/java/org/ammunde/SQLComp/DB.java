@@ -93,6 +93,11 @@ public class DB
         return db_host_;
     }
 
+    public DBType dbType()
+    {
+        return type_;
+    }
+
     public String schema()
     {
         return schema_;
@@ -101,12 +106,6 @@ public class DB
     public String schemaPrefix()
     {
         return schema_prefix_;
-    }
-
-
-    public DBType type()
-    {
-        return type_;
     }
 
     public void connect(String prefix)

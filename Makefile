@@ -22,6 +22,8 @@ javac: $(TARGET)/javac.timestamp
 
 # Locate the jar dependencies automatically downloaded by maven.
 JARS:=$(shell find $(PROJECT_DEPS)/ -name "*.jar" | tr '\n' ':')
+$(file >target/sqlcomp.sh,java -cp $(JARS):$(TARGET)/classes org.ammunde.SQLComp.Main $$*)
+$(shell chmod a+x target/sqlcomp.sh)
 
 # Find all java sources.
 SOURCES:=$(shell find src/main/java/ -type f -name "*.java")
@@ -32,7 +34,7 @@ $(TARGET)/sqlcomp: $(PROJECT_DEPS)/updated.timestamp $(SOURCES)
 	$(AT)cp $(TARGET)/SQLComp-1.0-SNAPSHOT.jar $(TARGET)/sqlcomp
 
 $(TARGET)/javac.timestamp: $(SOURCES)
-	@echo Compiling $(SOURCES)
+	@echo Compiling javac
 	$(AT)javac -classpath $(JARS) $(SOURCES)
 	$(AT)touch $@
 
@@ -60,6 +62,7 @@ run:
 
 test:
 	$(AT)java -cp $(JARS):target/classes org.ammunde.SQLComp.TestInternals
+	$(AT)./tests/test.sh
 
 clean:
 	@echo -n "Removing target directory..."

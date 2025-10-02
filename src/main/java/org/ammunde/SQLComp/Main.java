@@ -23,7 +23,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 package org.ammunde.SQLComp;
 
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Iterator;
@@ -106,23 +105,36 @@ public class Main
 
         if (cmd.equals("compare-tables"))
         {
-            Database from = useEnvWithPrefix("SQLCOMP_SOURCE", "");
-            Database to   = useEnvWithPrefix("SQLCOMP_SINK", "");
+            String table_pattern = ""; // Default is all tables
+            if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
 
-            Log.verbose("(compare-tables) "+from.name()+" --> "+to.name()+"\n");
-            boolean change_detected = Compare.compareTables(from, to);
+            if (!table_pattern.equals("")) Log.verbose("(compare-tables) "+table_pattern+"\n");
+            else Log.verbose("(compare-tables) all tables\n");
+
+            Database from = useEnvWithPrefix("SQLCOMP_SOURCE", table_pattern);
+            Database to   = useEnvWithPrefix("SQLCOMP_SINK", table_pattern);
+
+            StringBuilder out = new StringBuilder();
+            out.append("# compare-tables "+from.name()+"("+from.db().dbName()+":"+from.db().dbType()+") --> "+to.name()+"("+to.db().dbName()+":"+to.db().dbType()+")\n");
+
+            boolean change_detected = Compare.findCreatesAndDrops(from, to, out);
 
             List<String> tables = Compare.inBoth(from.tableNames(), to.tableNames());
             for (String t : tables)
             {
                 Table tt = to.table(t);
                 Table ft = from.table(t);
-                change_detected |= Compare.tableDefinition(ft, tt);
+                change_detected |= Compare.tableDefinition(ft, tt, out);
             }
+
 
             if (change_detected)
             {
-                // Changes have already been printed.
+                if (to.db().dbType() == DBType.MYSQL || to.db().dbType() == DBType.MARIADB)
+                {
+                    System.out.println("SET SESSION sql_mode = 'ANSI_QUOTES';");
+                }
+                System.out.println(out.toString());
                 System.exit(1);
             }
             else

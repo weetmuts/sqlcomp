@@ -46,30 +46,43 @@ public class Compare
         return true;
     }
 
-    public static boolean compareTables(Database from, Database to)
+    public static boolean findCreatesAndDrops(Database from, Database to, StringBuilder out)
     {
         boolean change_detected = false;
+        boolean drop_found = false;
 
         Set<String> f = new HashSet<>();
-        for (String s : from.tableNames()) f.add(s.toLowerCase());
-        f.addAll(from.tableNames());
+        for (String s : from.tableNames())
+        {
+            f.add(s.toLowerCase());
+        }
+
         Set<String> t = new HashSet<>();
-        for (String s : to.tableNames()) t.add(s.toLowerCase());
+        for (String s : to.tableNames())
+        {
+            t.add(s.toLowerCase());
+        }
 
         for (String s : to.tableNames())
         {
             if (!f.contains(s.toLowerCase()))
             {
-                Log.info("DROP TABLE "+to.db().schemaPrefix()+s+";\n");
+                if (!drop_found)
+                {
+                    out.append("# Warning! Dropping table! Note that a table rename becomes a drop+create!\n");
+                    drop_found = true;
+                }
+                out.append("DROP TABLE "+to.db().schemaPrefix()+s+";\n");
                 change_detected = true;
             }
         }
+
         for (String s : from.tableNames())
         {
             if (!t.contains(s.toLowerCase()))
             {
                 Table table = from.table(s);
-                table.printCreate();
+                table.printCreate(out);
                 change_detected = true;
             }
         }
@@ -90,7 +103,7 @@ public class Compare
         return rs;
     }
 
-    public static boolean tableDefinition(Table from, Table to)
+    public static boolean tableDefinition(Table from, Table to, StringBuilder out)
     {
         boolean change_detected = false;
 
@@ -100,13 +113,16 @@ public class Compare
         from_colums.addAll(from.columnNames());
         to_colums.addAll(to.columnNames());
 
-        if (!from_colums.equals(to_colums))
+        for (String s : from.columnNames())
         {
-            Log.info("SOURCE "+from.name()+" "+from.print()+"\n");
-            Log.info("SINK   "+to.name()+" "+to.print()+"\n");
-            change_detected = true;
+            if (!to_colums.contains(s))
+            {
+                Column c = from.column(s);
+                out.append("ALTER TABLE "+to.quotedName()+" ADD COLUMN ");
+                c.printDefinition(out);
+                out.append(";\n");
+            }
         }
-
         return change_detected;
     }
 }

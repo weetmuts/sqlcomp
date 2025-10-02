@@ -37,13 +37,19 @@ public class Column
     private String name_;
     private int type_;
     private String type_name_;
+    private boolean not_null_;
+    private String default_value_;
+    private int column_size_;
 
-    public Column(Table table, String name, int type, String type_name)
+    public Column(Table table, String name, int type, String type_name, boolean not_null, String default_value, int column_size)
     {
         table_ = table;
         name_ = name;
         type_ = type;
         type_name_ = type_name;
+        not_null_ = not_null;
+        default_value_ = default_value;
+        column_size_ = column_size;
     }
 
     public Table table()
@@ -71,8 +77,37 @@ public class Column
         return type_name_;
     }
 
-    public void printCreate()
+    public boolean notNull()
     {
-        System.out.print(name_+" "+type_name_);
+        return not_null_;
     }
+
+    public String defaultValue()
+    {
+        return default_value_;
+    }
+
+    public void printDefinition(StringBuilder out)
+    {
+        // As used by create table and alter table add, produces:
+        // "age" INT NOT NULL DEFAULT 0
+        out.append(quotedName()+" "+typeName());
+        if (Table.useColSize(type()) && column_size_ > 0)
+        {
+            out.append("("+column_size_+")");
+        }
+        if (not_null_) out.append(" NOT NULL");
+        // The default string encodes single quotes, "'hello'" if necessary
+        if (default_value_ != null) {
+            if (Util.defaultNeedsQuotes(type()))
+            {
+                out.append(" DEFAULT '"+defaultValue()+"'");
+            }
+            else
+            {
+                out.append(" DEFAULT "+defaultValue());
+            }
+        }
+    }
+
 }

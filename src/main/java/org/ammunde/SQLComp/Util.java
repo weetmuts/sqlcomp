@@ -29,6 +29,8 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.sql.Types;
+import java.text.Normalizer;
 
 public class Util
 {
@@ -135,6 +137,81 @@ public class Util
             tmp[i] = args[i+1];
         }
         return tmp;
+    }
+
+    public static boolean defaultNeedsQuotes(int type)
+    {
+        switch (type) {
+        case Types.CHAR:
+        case Types.DATE:
+        case Types.LONGNVARCHAR:
+        case Types.LONGVARCHAR:
+        case Types.NCHAR:
+        case Types.NVARCHAR:
+        case Types.OTHER:
+        case Types.SQLXML:
+        case Types.TIME:
+        case Types.TIME_WITH_TIMEZONE:
+        case Types.TIMESTAMP:
+        case Types.TIMESTAMP_WITH_TIMEZONE:
+        case Types.VARCHAR:
+            return true;
+        }
+        return false;
+    }
+
+    static String doubleApostrophes(String s)
+    {
+        if (s == null) return s;
+        StringBuilder out = new StringBuilder();
+
+        char p = 0;
+        char c = 0;
+        for (int i=0; i < s.length(); ++i)
+        {
+            p = c;
+            c = s.charAt(i);
+
+            if (c == '\'')
+            {
+                out.append("''");
+                continue;
+            }
+            else if (c == '\\')
+            {
+                out.append("\\\\");
+                continue;
+            }
+            else if (c > 1000)
+            {
+                // Ship zero width space. U+200B
+                continue;
+            }
+            else if (c == '¨' || c == 776)
+            {
+                if (p == 'a') out.append('ä');
+                else if (p == 'o') out.append('ö');
+                else if (p == 'A') out.append('Ä');
+                else if (p == 'O') out.append('Ö');
+                else if (p == 'u') out.append('ü');
+                else if (p == 'U') out.append('Ü');
+                else out.append("?");
+                continue;
+            }
+            else if (c == '°')
+            {
+                if (p == 'a') {
+                    out.append('å');
+                    continue;
+                }
+                // Allow for the use of ° as degrees....  Taklutning 2,5°
+            }
+            // SQL server cannot store čΩ it changes these into c and O.
+            out.append(c);
+        }
+        s = Normalizer.normalize(s, Normalizer.Form.NFC);
+
+        return out.toString();
     }
 
 }
