@@ -13,6 +13,6 @@ jobs:
     - id: CHECKOUT_SOURCE
       uses: actions/checkout@v3
     - id: MAKE
-      run: make
+      run: make AT=
     - id: TEST
       run: make test
