@@ -30,7 +30,8 @@ SOURCES:=$(shell find src/main/java/ -type f -name "*.java")
 
 $(TARGET)/sqlcomp: $(PROJECT_DEPS)/updated.timestamp $(SOURCES)
 	@echo Compiling using maven
-	$(AT)mvn -B -q package 2>&1 | grep -v "WARNING: A restrict" | grep -v "System::load" | grep -v "Use --enable-native" | grep -v "WARNING: Restr" | grep -v Unsafe
+	$(AT)mvn  package
+#2>&1 | grep -v "WARNING: A restrict" | grep -v "System::load" | grep -v "Use --enable-native" | grep -v "WARNING: Restr" | grep -v Unsafe
 	$(AT)cp $(TARGET)/SQLComp-1.0-SNAPSHOT.jar $(TARGET)/sqlcomp
 
 $(TARGET)/javac.timestamp: $(SOURCES)
