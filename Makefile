@@ -34,7 +34,7 @@ $(TARGET)/sqlcomp: $(PROJECT_DEPS)/updated.timestamp $(SOURCES)
 	@echo Compiling using maven
 	$(AT)(MAVEN_OPTS=$(MAVEN_OPTS) mvn -B -q package)
 	$(AT)cp $(TARGET)/SQLComp-1.0-SNAPSHOT.jar $(TARGET)/sqlcomp
-	@echo "built executable: $(TARGET)/sqlcomp"
+	@echo "Built executable: $(TARGET)/sqlcomp"
 
 $(TARGET)/javac.timestamp: $(SOURCES)
 	@echo Compiling javac
