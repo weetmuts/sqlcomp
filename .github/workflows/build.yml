@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - id: CHECKOUT_SOURCE_CODE
-      named: Checkout source code
+      name: Checkout source code
       uses: actions/checkout@v3
 
     - id: SETUP_JAVA_24
