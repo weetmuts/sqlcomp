@@ -21,6 +21,10 @@ jobs:
         distribution: 'temurin'
         java-version: '24'
 
+    - id: CONFIGURE_SQLCOMP
+      name: Configure sqlcomp
+      run: ./configure
+
     - id: BUILD_SQLCOMP
       name: Build sqlcomp
       run: make
