@@ -10,26 +10,7 @@ SINK_DB_TYPE=$5
 mkdir -p $OUTPUT
 STDERR=$OUTPUT/stderr.log
 
-# Env variables pass to the client
-export MYSQL_PWD=leroot
-export PGPASSWORD=leroot
-# Stuffed into the docker command
-SQLPASSWORD=LeRoot5_LeRoot5
-
-SOURCE_DB_NAME=test1_from
-SINK_DB_NAME=test1_to
-
-MYSQL="mysql -h 127.0.0.1 -P 3333 -uroot"
-MYSQL_SOURCE_DB_URL="jdbc:mariadb://127.0.0.1:3333/${SOURCE_DB_NAME}?autoReconnect=true&allowMultiQueries=true"
-MYSQL_SINK_DB_URL="jdbc:mariadb://127.0.0.1:3333/${SINK_DB_NAME}?autoReconnect=true&allowMultiQueries=true"
-
-POSTGRES="psql -h 127.0.0.1 -p 4444 -U postgres"
-POSTGRES_SOURCE_DB_URL="jdbc:postgresql://127.0.0.1:4444/${SOURCE_DB_NAME}?reWriteBatchedInserts=true"
-POSTGRES_SINK_DB_URL="jdbc:postgresql://127.0.0.1:4444/${SINK_DB_NAME}?reWriteBatchedInserts=true"
-
-SQLCMD="docker exec -e SQLCMDPASSWORD=${SQLPASSWORD} -i sqlcomp-test-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -C "
-SQLSERVER_SOURCE_DB_URL="jdbc:sqlserver://127.0.0.1:5555;databaseName=${SOURCE_DB_NAME};encrypt=true;trustServerCertificate=true"
-SQLSERVER_SINK_DB_URL="jdbc:sqlserver://127.0.0.1:5555;databaseName=${SINK_DB_NAME};encrypt=true;trustServerCertificate=true"
+. tests/environment
 
 echo -n > $STDERR
 
@@ -89,7 +70,7 @@ export SQLCOMP_STATUS_HTML="status.html"
 
 export SQLCOMP_SOURCE_NAME="MyFromDB"
 # SQLCOMP_SOURCE_DB_URL set before
-export SQLCOMP_SOURCE_DB_NAME="test1_from"
+export SQLCOMP_SOURCE_DB_NAME="test_from"
 #export SQLCOMP_SOURCE_DB_USER
 #export SQLCOMP_SOURCE_DB_PWD
 export SQLCOMP_SOURCE_SCHEMA=""
@@ -97,7 +78,7 @@ export SQLCOMP_SOURCE_IGNORED_TABLES=""
 
 export SQLCOMP_SINK_NAME="MyToDB"
 # SQLCOMP_SINK_DB_URL set before
-export SQLCOMP_SINK_DB_NAME="test1_to"
+export SQLCOMP_SINK_DB_NAME="test_to"
 # export SQLCOMP_SINK_DB_USER
 # export SQLCOMP_SINK_DB_PWD
 export SQLCOMP_SINK_SCHEMA=""
@@ -108,7 +89,6 @@ export SQLCOMP_SINK_IGNORED_TABLES=""
 . $SOURCE_SINK_SETUP
 
 # Prepare a set set of alter, create and drop commands.
-
 $SQLCOMP $VERBOSE compare-tables > $OUTPUT/alter.sql
 
 # Apply the changes.

@@ -15,12 +15,12 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package org.ammunde.SQLComp;
+package org.ammunde.sqlcomp;
 
-public class TestInternals
+import java.sql.ResultSet;
+import java.sql.SQLException;
+
+public interface ResultCallback
 {
-    public static void main(String[] args) throws Exception
-    {
-    }
-
+    void handle(ResultSet rs, int rownum) throws java.sql.SQLException;
 }

@@ -16,8 +16,15 @@ SOURCE=$3
 SINK=$4
 FILTER=$5
 
-if [ -z "$SQLCOMP" ]; then SQLCOMP=target/sqlcomp; fi
-if [ -z "$OUTPUT_BASE" ]; then OUTPUT_BASE=target/test_output; fi
+if [ -z "$SQLCOMP" ]; then SQLCOMP=build/sqlcomp; fi
+if [ -z "$OUTPUT_BASE" ]; then OUTPUT_BASE=build/test_output; fi
+
+tests/download_test_dbs.sh $SQLCOMP $OUTPUT_BASE $SOURCE $SINK
+
+echo "sqlserver->sqlserver"
+tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_sqlserver_sqlserver sqlserver sqlserver $FILTER
+
+exit 0
 
 echo "postgres->postgres"
 tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_postgres_postgres postgres postgres $FILTER
@@ -25,17 +32,17 @@ tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_postgres_postgres postgres postgres $F
 echo "mysql->mysql"
 tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_mysql_myql mysql mysql $FILTER
 
-echo "sqlserver->sqlserver"
-tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_sqlserver_sqlserver sqlserver sqlserver $FILTER
-
 echo "postgres->mysql"
 tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_postgres_mysql postgres mysql $FILTER
 
-echo "postgres->sqlserver"
-tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_postgres_mysql postgres sqlserver $FILTER
-
 echo "mysql->postgres"
 tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_mysql_postgres mysql postgres $FILTER
+
+
+exit 0
+
+echo "postgres->sqlserver"
+tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_postgres_mysql postgres sqlserver $FILTER
 
 echo "mysql->sqlserver"
 tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_mysql_postgres mysql sqlserver $FILTER

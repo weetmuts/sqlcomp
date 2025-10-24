@@ -15,12 +15,15 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package org.ammunde.SQLComp;
+package org.ammunde.sqlcomp;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.util.List;
 
-public interface ResultCallback
+public class Config
 {
-    void handle(ResultSet rs, int rownum) throws java.sql.SQLException;
+    public static Config load(String file)
+    {
+        // This loads a text file in the XMQ c-line format. Well be replaced with full XMQ support later.
+        return null;
+    }
 }

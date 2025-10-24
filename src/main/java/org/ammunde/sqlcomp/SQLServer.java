@@ -15,22 +15,18 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package org.ammunde.SQLComp;
+package org.ammunde.sqlcomp;
 
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.DatabaseMetaData;
 import java.util.List;
+import java.util.LinkedList;
 
-public record Row (int pk, List<String> cols)
+public class SQLServer extends Database
 {
-    String commaCols()
+    public SQLServer(String prefix, String table_pattern)
     {
-        StringBuilder out = new StringBuilder();
-        int n = 0;
-        for (String c : cols)
-        {
-            if (n > 0) out.append(",");
-            out.append(c);
-            n++;
-        }
-        return out.toString();
+        super(prefix, table_pattern);
     }
 }

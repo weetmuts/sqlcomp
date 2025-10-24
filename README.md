@@ -52,23 +52,28 @@ a drop and a create.
 
 ### How to use it:
 
-Setup environment variables: (This will be replaced with a config file in the future.)
+Create a config.xmq file:
 ```
-export SQLCOMP_SOURCE_NAME=MyMysql
-export SQLCOMP_SOURCE_DB_URL="jdbc:mariadb://mysourcedatabase/fromcomp?autoReconnect=true&allowMultiQueries=true"
-export SQLCOMP_SOURCE_DB_NAME=fromcomp
-export SQLCOMP_SOURCE_DB_USER=testuser
-export SQLCOMP_SOURCE_DB_PWD=asecret
-export SQLCOMP_SOURCE_SCHEMA=
-export SQLCOMP_SOURCE_IGNORED_TABLES=sequelizedata,sequelizemeta
-
-export SQLCOMP_SINK_NAME=ToSQLServer
-export SQLCOMP_SINK_DB_URL="jdbc:sqlserver://mysinkdatabase:1433;databaseName=tocomp;ConnectRetryCount=3;ConnectRetryInterval=10"
-export SQLCOMP_SINK_DB_NAME=tocomp
-export SQLCOMP_SINK_DB_USER=testuser
-export SQLCOMP_SINK_DB_PWD=asecret
-export SQLCOMP_SINK_SCHEMA=tocomp
-export SQLCOMP_SINK_IGNORED_TABLES=sequelizedata,sequelizemeta
+sqlcomp {
+    source {
+        name          = MyMysql
+        db_url        = jdbc:mariadb://mysourcedatabase/fromcomp?autoReconnect=true&allowMultiQueries=true
+        db_name       = fromcomp
+        db_user       = testuser
+        db_pwd        = asecret
+        schema        = ''
+        ignore_tables = sequelizedata,sequelizemeta
+    }
+    sink {
+        name          = ToSQLServer
+        db_url        = jdbc:sqlserver://mysinkdatabase:1433;databaseName=tocomp;ConnectRetryCount=3;ConnectRetryInterval=10
+        db_name       = tocomp
+        db_user       = testuser
+        db_pwd        = asecret
+        schema        = tocomp
+        ignore_tables = sequelizedata,sequelizemeta
+    }
+}
 ```
 
 (Note that when sinking to MySQL you need to specify `allowMultiQueries=true`
@@ -82,17 +87,17 @@ warning for tables that exist in the source but does not exist in sink.
 Wether or not the tables are compatible for syncing will only be found out at runtime.
 
 ```
-sqlcomp sync-data
+sqlcomp config.xmq sync-data
 ```
 
 To only sync a single table, just add the name of the table:
 ```
-sqlcomp sync-data myaddresstable
+sqlcomp config.xmq sync-data myaddresstable
 ```
 
 To perform a dry-run, printing the changes on stdout do:
 ```
-sqlcomp compare-data myaddresstable
+sqlcomp config.xmq compare-data myaddresstable
 ```
 
 The command stream-data listens to the binlog events from a mysql source
@@ -102,20 +107,20 @@ on those rows.) It also immediately performs a full sync-data, and repeating
 this sync-data in the night 02:00 every day.
 
 ```
-sqlcomp stream-data
+sqlcomp config.xmq stream-data
 ```
 
 Likewise add the table name to only stream a single table:
 
 ```
-sqlcomp stream-data myaddresstable
+sqlcomp config.xmq stream-data myaddresstable
 ```
 
 The command compare-tables will print suggested commands to modify
 the sink databases to be similar to the source database.
 
 ```
-sqlcomp compare-tables
+sqlcomp config.xmq compare-tables
 ```
 
 Might print:

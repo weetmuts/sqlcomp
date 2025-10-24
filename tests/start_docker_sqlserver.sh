@@ -18,4 +18,4 @@ fi
 
 # Install a sql server locally using docker, use a nonstandard port to avoid conflicts.
 docker run -e "ACCEPT_EULA=Y" -e "SA_PASSWORD=LeRoot5_LeRoot5" -p 5555:1433 --name sqlcomp-test-sqlserver --hostname sqlcomp-test-sqlserver -d mcr.microsoft.com/mssql/server:2025-latest
-echo "Started docker sqlserver."
+echo "Started docker sqlserver. Please wait 20 seconds for it to spin up."

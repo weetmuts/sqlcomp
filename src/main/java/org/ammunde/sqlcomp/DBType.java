@@ -15,18 +15,12 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package org.ammunde.SQLComp;
+package org.ammunde.sqlcomp;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.DatabaseMetaData;
-import java.util.List;
-import java.util.LinkedList;
-
-public class Mysql extends Database
+public enum DBType
 {
-    public Mysql(String prefix, String table_pattern)
-    {
-        super(prefix, table_pattern);
-    }
+    POSTGRES,
+    MYSQL,
+    MARIADB,
+    SQLSERVER
 }

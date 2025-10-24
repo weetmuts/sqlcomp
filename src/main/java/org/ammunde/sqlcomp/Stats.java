@@ -15,15 +15,23 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package org.ammunde.SQLComp;
+package org.ammunde.sqlcomp;
 
-import java.util.List;
-
-public class Config
+public class Stats
 {
-    public static Config load(String file)
+    int updates;
+    int inserts;
+    int deletes;
+    int failures;
+
+    String toHTML()
     {
-        // This loads a text file in the XMQ c-line format. Well be replaced with full XMQ support later.
-        return null;
+        String s = "";
+        if (inserts > 0) s += " i"+inserts;
+        if (updates > 0) s += " u"+updates;
+        if (deletes > 0) s += " d"+deletes;
+        if (failures > 0) s += " <span class=\"warn\">f"+deletes+"</span>";
+        return s.trim();
     }
+
 }

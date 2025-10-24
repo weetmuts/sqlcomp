@@ -15,23 +15,22 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package org.ammunde.SQLComp;
+package org.ammunde.sqlcomp;
 
-public class Stats
+import java.util.List;
+
+public record Row (int pk, List<String> cols)
 {
-    int updates;
-    int inserts;
-    int deletes;
-    int failures;
-
-    String toHTML()
+    String commaCols()
     {
-        String s = "";
-        if (inserts > 0) s += " i"+inserts;
-        if (updates > 0) s += " u"+updates;
-        if (deletes > 0) s += " d"+deletes;
-        if (failures > 0) s += " <span class=\"warn\">f"+deletes+"</span>";
-        return s.trim();
+        StringBuilder out = new StringBuilder();
+        int n = 0;
+        for (String c : cols)
+        {
+            if (n > 0) out.append(",");
+            out.append(c);
+            n++;
+        }
+        return out.toString();
     }
-
 }

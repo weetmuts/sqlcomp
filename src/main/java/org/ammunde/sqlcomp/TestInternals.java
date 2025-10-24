@@ -15,12 +15,12 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package org.ammunde.SQLComp;
+package org.ammunde.sqlcomp;
 
-public enum DBType
+public class TestInternals
 {
-    POSTGRES,
-    MYSQL,
-    MARIADB,
-    SQLSERVER
+    public static void main(String[] args) throws Exception
+    {
+    }
+
 }

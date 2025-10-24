@@ -15,7 +15,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package org.ammunde.SQLComp;
+package org.ammunde.sqlcomp;
 
 import java.util.List;
 import java.util.ArrayList;
@@ -114,83 +114,91 @@ public class DB
 
     public synchronized boolean reconnect()
     {
-        if (connection_ != null)
+        try
         {
+            if (connection_ != null)
+            {
+                try
+                {
+                    connection_.close();
+                }
+                catch (Exception e)
+                {
+                    e.printStackTrace();
+                    Log.warning("(db) failed to close "+name_+"\n");
+                }
+                connection_ = null;
+            }
+            name_ = System.getenv(prefix_+"_NAME"); // "MySourceDB"
+            db_url_ = System.getenv(prefix_+"_DB_URL"); // "jdbc:postgresql://localhost/fromcomp";
+            db_name_ = System.getenv(prefix_+"_DB_NAME"); // fromcomp
+            db_user_ = System.getenv(prefix_+"_DB_USER"); // testuser
+            db_pwd_ = System.getenv(prefix_+"_DB_PWD"); // asecret
+            db_host_ = Util.jdbcHost(db_url_);
+            schema_ = System.getenv(prefix_+"_SCHEMA"); // A schema is an internal grouping of tables inside a database.
+
+            String ignores = System.getenv(prefix_+"_IGNORED_TABLES");
+            ignored_tables_ = new HashSet<>();
+            if (ignores != null && !ignores.trim().equals(""))
+            {
+                String[] is = ignores.split(",");
+                for (String s : is)
+                {
+                    ignored_tables_.add(s);
+                }
+            }
+
+            if (schema_ != null && schema_.length() > 0) schema_prefix_ = schema_+".";
+            else schema_prefix_ = "";
+
+            if (db_url_.startsWith("jdbc:postgresql")) type_ = DBType.POSTGRES;
+            if (db_url_.startsWith("jdbc:mysql")) type_ = DBType.MYSQL;
+            if (db_url_.startsWith("jdbc:mariadb")) type_ = DBType.MARIADB;
+            if (db_url_.startsWith("jdbc:sqlserver")) type_ = DBType.SQLSERVER;
+
+            String sc = schema_;
+            if (sc.length() > 0) sc += ".";
+
+            Log.verbose("(db) connecting "+name_+"("+sc+db_name_+":"+type_+") "+db_user_+" "+db_host_+" "+db_url_+"\n");
+
             try
             {
-                connection_.close();
+                connection_ = DriverManager.getConnection(db_url_, db_user_, db_pwd_);
+                last_connection_check_ = System.currentTimeMillis();
             }
             catch (Exception e)
             {
-                e.printStackTrace();
-                Log.warning("(db) failed to close "+name_+"\n");
+                Log.error("(db) failed to connect to "+db_url_+" "+e+"\n");
+                last_connection_check_ = 0;
+                return false;
             }
-            connection_ = null;
-        }
-        name_ = System.getenv(prefix_+"_NAME"); // "MySourceDB"
-        db_url_ = System.getenv(prefix_+"_DB_URL"); // "jdbc:postgresql://localhost/fromcomp";
-        db_name_ = System.getenv(prefix_+"_DB_NAME"); // fromcomp
-        db_user_ = System.getenv(prefix_+"_DB_USER"); // testuser
-        db_pwd_ = System.getenv(prefix_+"_DB_PWD"); // asecret
-        db_host_ = Util.jdbcHost(db_url_);
-        schema_ = System.getenv(prefix_+"_SCHEMA"); // A schema is an internal grouping of tables inside a database.
-        // Store
-        String ignores = System.getenv(prefix_+"_IGNORED_TABLES");
-        ignored_tables_ = new HashSet<>();
-        if (ignores != null && !ignores.trim().equals(""))
-        {
-            String[] is = ignores.split(",");
-            for (String s : is)
+
+            if (type_ == DBType.MYSQL || type_ == DBType.MARIADB)
             {
-                ignored_tables_.add(s);
+                String session = performQueryString("SELECT @@session.sql_mode");
+                if (session.indexOf("ANSI_QUOTES") == -1)
+                {
+                    session = "ANSI_QUOTES,"+session;
+                    performUpdate("SET SESSION SQL_MODE='"+session+"'");
+                }
+                Log.verbose("(db) "+name_+" session "+session+"\n");
+
+                // Disable the foreign key checks, necessary to be able to
+                // update tables in potentially the wrong order.
+                performUpdate("SET FOREIGN_KEY_CHECKS = 0");
+                Log.verbose("(db) "+name_+" session SET FOREIGN_KEY_CHECKS = 0\n");
             }
-        }
 
-        if (schema_ != null && schema_.length() > 0) schema_prefix_ = schema_+".";
-        else schema_prefix_ = "";
-
-        if (db_url_.startsWith("jdbc:postgresql")) type_ = DBType.POSTGRES;
-        if (db_url_.startsWith("jdbc:mysql")) type_ = DBType.MYSQL;
-        if (db_url_.startsWith("jdbc:mariadb")) type_ = DBType.MARIADB;
-        if (db_url_.startsWith("jdbc:sqlserver")) type_ = DBType.SQLSERVER;
-
-        String sc = schema_;
-        if (sc.length() > 0) sc += ".";
-
-        Log.verbose("(db) connecting "+name_+"("+sc+db_name_+":"+type_+") "+db_user_+" "+db_host_+" "+db_url_+"\n");
-
-        try
-        {
-            connection_ = DriverManager.getConnection(db_url_, db_user_, db_pwd_);
-            last_connection_check_ = System.currentTimeMillis();
+            if (type_ == DBType.SQLSERVER)
+            {
+                performUpdate("SET QUOTED_IDENTIFIER ON");
+            }
         }
         catch (Exception e)
         {
-            e.printStackTrace();
             Log.error("(db) failed to connect to "+db_url_+"\n");
             last_connection_check_ = 0;
             return false;
-        }
-
-        if (type_ == DBType.MYSQL || type_ == DBType.MARIADB)
-        {
-            String session = performQueryString("SELECT @@session.sql_mode");
-            if (session.indexOf("ANSI_QUOTES") == -1)
-            {
-                session = "ANSI_QUOTES,"+session;
-                performUpdate("SET SESSION SQL_MODE='"+session+"'");
-            }
-            Log.verbose("(db) "+name_+" session "+session+"\n");
-
-            // Disable the foreign key checks...not a good solution but necessary
-            // for now to be able to update all tables in the wrong order.
-            performUpdate("SET FOREIGN_KEY_CHECKS = 0");
-            Log.verbose("(db) "+name_+" session SET FOREIGN_KEY_CHECKS = 0\n");
-        }
-
-        if (type_ == DBType.SQLSERVER)
-        {
-            performUpdate("SET QUOTED_IDENTIFIER ON");
         }
 
         return true;

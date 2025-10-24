@@ -15,7 +15,7 @@
  along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-package org.ammunde.SQLComp;
+package org.ammunde.sqlcomp;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -176,15 +176,16 @@ public class Main
     static void printHelp()
     {
         Log.info("""
-                 Usage: sqlcomp [command]
+                 Usage:
+                   sqlcomp config.xmq [command] [options]
 
                  Available commands:
-                 compare-tables
-                 compare-data
-                 sync-data
-                 stream-data
-                 show-source-tables
-                 show-sink-tables
+                   compare-tables        Print CREATE/ALTER/DROP to modify sink.
+                   compare-data          Print INSERT/UPDATE/DELETE to modify sink.
+                   sync-data             Perform INSERT/UPDATE/DELETE to modify sink.
+                   stream-data           Listen to source changes, update sink.
+                   show-source-tables    List the source tables.
+                   show-sink-tables      List the sink tables.
                  """);
     }
 
