@@ -21,11 +21,6 @@ if [ -z "$OUTPUT_BASE" ]; then OUTPUT_BASE=build/test_output; fi
 
 tests/download_test_dbs.sh $SQLCOMP $OUTPUT_BASE $SOURCE $SINK
 
-echo "sqlserver->sqlserver"
-tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_sqlserver_sqlserver sqlserver sqlserver $FILTER
-
-exit 0
-
 echo "postgres->postgres"
 tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_postgres_postgres postgres postgres $FILTER
 
@@ -38,8 +33,8 @@ tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_postgres_mysql postgres mysql $FILTER
 echo "mysql->postgres"
 tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_mysql_postgres mysql postgres $FILTER
 
-
-exit 0
+echo "sqlserver->sqlserver"
+tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_sqlserver_sqlserver sqlserver sqlserver $FILTER
 
 echo "postgres->sqlserver"
 tests/test_run.sh $SQLCOMP ${OUTPUT_BASE}_postgres_mysql postgres sqlserver $FILTER
