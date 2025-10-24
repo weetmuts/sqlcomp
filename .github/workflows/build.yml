@@ -16,7 +16,7 @@ jobs:
 
     - id: INSTALL_ADDITIONAL_BUILD_DEPENDENCIES
       name: Install deb dependencies
-      run: sudo apt install -y eatmydata libxml2-dev libxslt1-dev
+      run: sudo apt update; sudo apt install -y eatmydata libxml2-dev libxslt1-dev
 
     - id: SETUP_JAVA_24
       name: Set up Java 24
