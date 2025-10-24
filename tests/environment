@@ -1,0 +1,20 @@
+# Env variables pass to the client
+export MYSQL_PWD=leroot
+export PGPASSWORD=leroot
+# Stuffed into the docker command
+SQLPASSWORD=LeRoot5_LeRoot5
+
+SOURCE_DB_NAME=test_from
+SINK_DB_NAME=test_to
+
+MYSQL="mysql -h 127.0.0.1 -P 3333 -uroot"
+MYSQL_SOURCE_DB_URL="jdbc:mariadb://127.0.0.1:3333/${SOURCE_DB_NAME}?autoReconnect=true&allowMultiQueries=true"
+MYSQL_SINK_DB_URL="jdbc:mariadb://127.0.0.1:3333/${SINK_DB_NAME}?autoReconnect=true&allowMultiQueries=true"
+
+POSTGRES="psql -h 127.0.0.1 -p 4444 -U postgres"
+POSTGRES_SOURCE_DB_URL="jdbc:postgresql://127.0.0.1:4444/${SOURCE_DB_NAME}?reWriteBatchedInserts=true"
+POSTGRES_SINK_DB_URL="jdbc:postgresql://127.0.0.1:4444/${SINK_DB_NAME}?reWriteBatchedInserts=true"
+
+SQLCMD="docker exec -e SQLCMDPASSWORD=${SQLPASSWORD} -i sqlcomp-test-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U SA -C "
+SQLSERVER_SOURCE_DB_URL="jdbc:sqlserver://127.0.0.1:5555;databaseName=${SOURCE_DB_NAME};encrypt=true;trustServerCertificate=true"
+SQLSERVER_SINK_DB_URL="jdbc:sqlserver://127.0.0.1:5555;databaseName=${SINK_DB_NAME};encrypt=true;trustServerCertificate=true"
