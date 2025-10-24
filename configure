@@ -52,7 +52,7 @@ fi
 
 XMQ=$(command -v xmq)
 
-if [ -z "$XMQ" ]
+if [ -z "$XMQ" ] &&  [ ! "$1" = "--no-xmq" ]
 then
     XMQ=$(pwd)/3rdparty/xmq/build/default/release/xmq
 

@@ -24,8 +24,7 @@ $(file >build/$(EXECUTABLE).sh,java -cp $(JARS):$(BUILD)/classes $(GROUPID).$(AR
 $(shell chmod a+x build/$(EXECUTABLE).sh)
 
 pom.xml: pom.xmq
-	@echo "Updating pom.xml"
-	$(AT)xmq pom.xmq to-xml > pom.xml
+	$(AT)if [ ! "$(XMQ)" = "" ]; then @echo "Updating pom.xml"; xmq pom.xmq to-xml > pom.xml ; fi
 
 # Find all java sources.
 SOURCES:=$(shell find src/main/java/ -type f -name "*.java")
