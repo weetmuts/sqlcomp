@@ -35,7 +35,7 @@ $(BUILD)/$(EXECUTABLE): $(PROJECT_DEPS)/updated.timestamp $(SOURCES) pom.xml
 	$(AT)cp $(BUILD)/$(ARTIFACTID)-1.0-SNAPSHOT.jar $(BUILD)/$(EXECUTABLE)
 	@echo "Built executable: $(BUILD)/$(EXECUTABLE)"
 
-$(BUILD)/javac.timestamp: $(SOURCES)
+$(BUILD)/javac.timestamp: $(PROJECT_DEPS)/updated.timestamp $(SOURCES) pom.xml
 	@echo Compiling javac
 	$(AT)javac -classpath $(JARS) -d build/classes $(SOURCES)
 	$(AT)touch $@
@@ -48,7 +48,7 @@ $(PROJECT_DEPS)/updated.timestamp: pom.xml
 	@rm -rf $(PROJECT_DEPS)
 	@mkdir -p $(PROJECT_DEPS)
 	@echo Storing java dependencies into $(PROJECT_DEPS)
-	$(AT)(MAVEN_OPTS=$(MAVEN_OPTS) mvn -B -q dependency:copy-dependencies)
+	$(AT)(MAVEN_OPTS=$(MAVEN_OPTS) mvn -DoutputDirectory=$(PROJECT_DEPS) -B -q dependency:copy-dependencies)
 	@touch $(PROJECT_DEPS)/updated.timestamp
 
 dump_databases:
