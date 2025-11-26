@@ -24,7 +24,11 @@ $(file >build/$(EXECUTABLE).sh,java -cp $(JARS):$(BUILD)/classes $(GROUPID).$(AR
 $(shell chmod a+x build/$(EXECUTABLE).sh)
 
 pom.xml: pom.xmq
-	$(AT)if [ ! "$(XMQ)" = "" ]; then @echo "Updating pom.xml"; xmq pom.xmq to-xml > pom.xml ; fi
+	$(AT)if [ ! "$(XMQ)" = "" ]; then echo "Updating pom.xml"; xmq pom.xmq to-xml > pom.xml ; xmllint --format pom.xml > tmpo ; mv tmpo pom.xml ; fi
+	$(AT). ./jproject.settings ; if ! grep -q "= $$VERSION" pom.xmq ; then echo "Version $$VERSION not found in pom.xmq"; exit 1; fi
+	$(AT). ./jproject.settings ; if ! grep -q "= $$ARTIFACTID" pom.xmq ; then echo "Artifactid $$ARTIFACTID not found in pom.xmq"; exit 1; fi
+	$(AT). ./jproject.settings ; if ! grep -q "= $$GROUPID" pom.xmq ; then echo "Groupid $$GROUPID not found in pom.xmq"; exit 1; fi
+
 
 # Find all java sources.
 SOURCES:=$(shell find src/main/java/ -type f -name "*.java")
@@ -32,7 +36,9 @@ SOURCES:=$(shell find src/main/java/ -type f -name "*.java")
 $(BUILD)/$(EXECUTABLE): $(PROJECT_DEPS)/updated.timestamp $(SOURCES) pom.xml
 	@echo Compiling using maven
 	$(AT)(MAVEN_OPTS=$(MAVEN_OPTS) mvn -B -q package)
-	$(AT)cp $(BUILD)/$(ARTIFACTID)-1.0-SNAPSHOT.jar $(BUILD)/$(EXECUTABLE)
+	$(AT)cat scripts/run.sh $(BUILD)/$(ARTIFACTID)-1.0.0-SNAPSHOT.jar > $@
+	$(AT)chmod a+x $@
+#	$(AT)cp $(BUILD)/$(ARTIFACTID)-1.0.0-SNAPSHOT.jar $(BUILD)/$(EXECUTABLE)
 	@echo "Built executable: $(BUILD)/$(EXECUTABLE)"
 
 $(BUILD)/javac.timestamp: $(PROJECT_DEPS)/updated.timestamp $(SOURCES) pom.xml
@@ -62,11 +68,11 @@ recreate_database:
 run:
 	@java -cp $(JARS):build/classes $(GROUPID).$(ARTIFACTID).Main $(ARGS)
 
-test: build/$(EXECUTABLE) test_dbs
+test: $(BUILD)/$(EXECUTABLE) test_dbs
 	$(AT)java -cp $(JARS):build/classes $(GROUPID).$(ARTIFACTID).TestInternals
 	$(AT)./tests/test.sh build/$(EXECUTABLE) build/test_output $(SOURCE) $(SINK) $(FILTER)
 
-testv: build/$(EXECUTABLE) test_dbs
+testv: $(BUILD)/$(EXECUTABLE) test_dbs
 	$(AT)java -cp $(JARS):build/classes $(GROUPID).$(ARTIFACTID).TestInternals
 	$(AT)(VERBOSE="-v" ./tests/test.sh build/$(EXECUTABLE) build/test_output $(SOURCE) $(SINK) $(FILTER))
 

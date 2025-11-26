@@ -210,7 +210,7 @@ public class Table
             name_to_column_ = new HashMap<>();
             DatabaseMetaData meta = database().db().connection().getMetaData();
             String s = null;
-            if (database().db().schema() != null && database().db().schema().length() > 0) s = database().db().schema();
+            if (database().db().dbSchema() != null && database().db().dbSchema().length() > 0) s = database().db().dbSchema();
             // SQL Server should use dbo if no schema is supplied.
             if (s == null && database().db().dbType() == DBType.SQLSERVER) s = "dbo";
 
@@ -263,7 +263,7 @@ public class Table
         {
             DatabaseMetaData meta = database().db().connection().getMetaData();
             String s = null;
-            if (database().db().schema() != null && database().db().schema().length() > 0) s = database().db().schema();
+            if (database().db().dbSchema() != null && database().db().dbSchema().length() > 0) s = database().db().dbSchema();
             String d = null;
             if (database().db().dbName() != null && database().db().dbName().length() > 0) d = database().db().dbName();
             // SQL Server does not accept a catalog (aka database) name here....

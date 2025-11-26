@@ -22,11 +22,12 @@ import java.sql.SQLException;
 import java.sql.DatabaseMetaData;
 import java.util.List;
 import java.util.LinkedList;
+import org.libxmq.Query;
 
 public class SQLServer extends Database
 {
-    public SQLServer(String prefix, String table_pattern)
+    public SQLServer(Query config, String table_pattern)
     {
-        super(prefix, table_pattern);
+        super(config, table_pattern);
     }
 }

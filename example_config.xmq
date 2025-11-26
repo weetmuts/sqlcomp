@@ -1,0 +1,22 @@
+sqlcomp {
+    source {
+        name          = MyMysql
+        db_url        = jdbc:mariadb://mysourcedatabase/fromcomp?autoReconnect=true&allowMultiQueries=true
+        db_host       = mysourcedatabase
+        db_name       = fromcomp
+        db_user       = testuser
+        db_pwd        = asecret
+        db_schema     = ''
+        ignore_tables = sequelizedata,sequelizemeta
+    }
+    sink {
+        name          = ToSQLServer
+        db_url        = jdbc:sqlserver://mysinkdatabase:1433;databaseName=tocomp;ConnectRetryCount=3;ConnectRetryInterval=10
+        db_host       = mysinkdatabase
+        db_name       = tocomp
+        db_user       = testuser
+        db_pwd        = asecret
+        db_schema     = tocomp
+        ignore_tables = sequelizedata,sequelizemeta
+    }
+}

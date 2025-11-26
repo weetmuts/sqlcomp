@@ -22,11 +22,12 @@ import java.sql.SQLException;
 import java.sql.DatabaseMetaData;
 import java.util.List;
 import java.util.LinkedList;
+import org.libxmq.Query;
 
 public class Postgres extends Database
 {
-    public Postgres(String prefix, String table)
+    public Postgres(Query config, String table)
     {
-        super(prefix, table);
+        super(config, table);
     }
 }

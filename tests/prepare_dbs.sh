@@ -6,6 +6,7 @@ export SQLCOMP=$2
 export OUTPUT=$3
 export SOURCE_DB_TYPE=$4
 export SINK_DB_TYPE=$5
+export CONFIG_XMQ=$OUTPUT/test.xmq
 
 mkdir -p $OUTPUT
 STDERR=$OUTPUT/stderr.log
@@ -87,3 +88,29 @@ export SQLCOMP_SINK_IGNORED_TABLES=""
 # Prepare source and sink databases
 
 . $SOURCE_SINK_SETUP
+
+
+echo "Writing $CONFIG_XMQ"
+
+cat > $CONFIG_XMQ <<EOF
+sqlcomp {
+    source {
+        name          = $SQLCOMP_SOURCE_NAME
+        db_url        = $SQLCOMP_SOURCE_DB_URL
+        db_name       = $SQLCOMP_SOURCE_DB_NAME
+        db_user       = $SQLCOMP_SOURCE_DB_USER
+        db_pwd        = $SQLCOMP_SOURCE_DB_PWD
+        schema        = ''
+        ignore_tables = ''
+    }
+    sink {
+        name          = $SQLCOMP_SINK_NAME
+        db_url        = $SQLCOMP_SINK_DB_URL
+        db_name       = $SQLCOMP_SINK_DB_NAME
+        db_user       = $SQLCOMP_SINK_DB_USER
+        db_pwd        = $SQLCOMP_SINK_DB_PWD
+        schema        = ''
+        ignore_tables = ''
+    }
+}
+EOF

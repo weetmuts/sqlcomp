@@ -25,6 +25,7 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Collections;
+import org.libxmq.Query;
 
 public class Database
 {
@@ -35,9 +36,9 @@ public class Database
     private int max_table_name_length_;
     private Status status_;
 
-    public Database(String prefix, String table_pattern)
+    public Database(Query config, String table_pattern)
     {
-        db_ = new DB(prefix);
+        db_ = new DB(config);
         loadTables(table_pattern);
     }
 
@@ -100,7 +101,7 @@ public class Database
 
             DatabaseMetaData meta = db().connection().getMetaData();
             String s = null;
-            if (db().schema() != null && db().schema().length() > 0) s = db().schema();
+            if (db().dbSchema() != null && db().dbSchema().length() > 0) s = db().dbSchema();
             // SQL Server should use dbo if no schema is supplied.
             if (s == null && db().dbType() == DBType.SQLSERVER) s = "dbo";
 

@@ -29,10 +29,13 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.Set;
 import java.util.HashSet;
+import java.util.Optional;
+import org.libxmq.Query;
+import org.w3c.dom.Element;
 
 public class DB
 {
-    private String prefix_;
+    private boolean valid_;
     private Connection connection_;
     private String name_;
     private String db_name_;
@@ -40,15 +43,57 @@ public class DB
     private String db_pwd_;
     private String db_host_;
     private String db_url_;
-    private String schema_;
+    private String db_schema_;
     private String schema_prefix_; // The schema_+"." or "" if no schema_
     private DBType type_;
+    private Set<String> ignore_tables_;
     private long last_connection_check_;
-    private Set<String> ignored_tables_;
 
-    public DB(String prefix)
+    public DB(Query config)
     {
-        connect(prefix);
+        try
+        {
+            name_    = config.getString("name", "\\w+");
+            db_name_ = config.getString("db_name", "\\w+");
+            db_url_  = config.getString("db_url", "\\w+");
+            db_host_ = config.optional().getString("db_host", "\\w+");
+            if (db_host_ == null)
+            {
+                db_host_ = extractHost(db_url_);
+            }
+            db_user_ = config.getString("db_user", "\\w+");
+            db_pwd_ = config.getString("db_pwd", ".*");
+            db_schema_ = config.optional().getString("db_schema", "\\w*");
+
+            String ignores = config.optional().getString("ignore_tables", ".*");
+
+            ignore_tables_ = new HashSet<>();
+            if (ignores != null && !ignores.trim().equals(""))
+            {
+                String[] is = ignores.split(",");
+                for (String s : is)
+                {
+                    ignore_tables_.add(s);
+                }
+            }
+
+            if (db_schema_ != null && db_schema_.length() > 0) schema_prefix_ = db_schema_+".";
+            else schema_prefix_ = "";
+
+            if (db_url_.startsWith("jdbc:postgresql")) type_ = DBType.POSTGRES;
+            else if (db_url_.startsWith("jdbc:mysql")) type_ = DBType.MYSQL;
+            else if (db_url_.startsWith("jdbc:mariadb")) type_ = DBType.MARIADB;
+            else if (db_url_.startsWith("jdbc:sqlserver")) type_ = DBType.SQLSERVER;
+            else type_ = DBType.UNKNOWN;
+
+            valid_ = true;
+            connect();
+        }
+        catch(Exception e)
+        {
+            valid_ = false;
+            e.printStackTrace();
+        }
     }
 
     public void close() throws SQLException
@@ -92,9 +137,9 @@ public class DB
         return type_;
     }
 
-    public String schema()
+    public String dbSchema()
     {
-        return schema_;
+        return db_schema_;
     }
 
     public String schemaPrefix()
@@ -102,9 +147,8 @@ public class DB
         return schema_prefix_;
     }
 
-    public void connect(String prefix)
+    public void connect()
     {
-        prefix_ = prefix;
         if (!reconnect())
         {
             Log.error("(db) failed second reconnect attempt to "+name_+"\n");
@@ -114,6 +158,7 @@ public class DB
 
     public synchronized boolean reconnect()
     {
+        if (!valid_) return false;
         try
         {
             if (connection_ != null)
@@ -129,37 +174,8 @@ public class DB
                 }
                 connection_ = null;
             }
-            name_ = System.getenv(prefix_+"_NAME"); // "MySourceDB"
-            db_url_ = System.getenv(prefix_+"_DB_URL"); // "jdbc:postgresql://localhost/fromcomp";
-            db_name_ = System.getenv(prefix_+"_DB_NAME"); // fromcomp
-            db_user_ = System.getenv(prefix_+"_DB_USER"); // testuser
-            db_pwd_ = System.getenv(prefix_+"_DB_PWD"); // asecret
-            db_host_ = Util.jdbcHost(db_url_);
-            schema_ = System.getenv(prefix_+"_SCHEMA"); // A schema is an internal grouping of tables inside a database.
 
-            String ignores = System.getenv(prefix_+"_IGNORED_TABLES");
-            ignored_tables_ = new HashSet<>();
-            if (ignores != null && !ignores.trim().equals(""))
-            {
-                String[] is = ignores.split(",");
-                for (String s : is)
-                {
-                    ignored_tables_.add(s);
-                }
-            }
-
-            if (schema_ != null && schema_.length() > 0) schema_prefix_ = schema_+".";
-            else schema_prefix_ = "";
-
-            if (db_url_.startsWith("jdbc:postgresql")) type_ = DBType.POSTGRES;
-            if (db_url_.startsWith("jdbc:mysql")) type_ = DBType.MYSQL;
-            if (db_url_.startsWith("jdbc:mariadb")) type_ = DBType.MARIADB;
-            if (db_url_.startsWith("jdbc:sqlserver")) type_ = DBType.SQLSERVER;
-
-            String sc = schema_;
-            if (sc.length() > 0) sc += ".";
-
-            Log.verbose("(db) connecting "+name_+"("+sc+db_name_+":"+type_+") "+db_user_+" "+db_host_+" "+db_url_+"\n");
+            Log.verbose("(db) connecting "+name_+"("+schema_prefix_+db_name_+":"+type_+") "+db_user_+" "+db_host_+" "+db_url_+"\n");
 
             try
             {
@@ -452,7 +468,7 @@ public class DB
 
     public boolean ignored(String table)
     {
-        return ignored_tables_.contains(table);
+        return ignore_tables_.contains(table);
     }
 
     public synchronized void keepalive()
@@ -485,6 +501,44 @@ public class DB
                 reconnect();
             }
         } while (retry);
+    }
+
+    /**
+     * Extracts the host from a JDBC URL if present.
+     * Returns null if no host can be found (e.g., embedded DBs).
+     * @param url
+     * @return The host name or null.
+     */
+    static String extractHost(String url)
+    {
+        if (url == null || url.isEmpty())
+        {
+            return null;
+        }
+
+        try
+        {
+            // Strip the "jdbc:" prefix if present
+            String u = url.startsWith("jdbc:") ? url.substring(5) : url;
+
+            java.net.URI uri = new java.net.URI(u);
+            return uri.getHost(); // may return null if no host part exists
+        }
+        catch (Exception e)
+        {
+            // Fallback: try manual parsing
+            int idx = url.indexOf("://");
+            if (idx != -1)
+            {
+                String after_scheme = url.substring(idx + 3);
+                String[] parts = after_scheme.split("[/:;]");
+                if (parts.length > 0)
+                {
+                    return parts[0];
+                }
+            }
+            return null;
+        }
     }
 
 }

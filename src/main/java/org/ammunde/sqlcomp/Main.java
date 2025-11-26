@@ -17,39 +17,56 @@
 
 package org.ammunde.sqlcomp;
 
+import org.libxmq.XMQ;
+import org.libxmq.Query;
+import org.libxmq.InputSettings;
+import org.libxmq.OutputSettings;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.Collections;
 import java.time.LocalTime;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.nio.file.Paths;
+import java.nio.file.Path;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 public class Main
 {
     public static void main(String[] args) throws Exception
     {
-        if (args.length == 0)
+        if (args.length < 2)
         {
             printHelp();
             return;
         }
 
+        XMQ xmq = new XMQ();
+        InputSettings is = new InputSettings();
+        Path p = Paths.get(args[0]);
+        Query config = xmq.queryFile(p, is);
+
+        Query source_config = config.query("/sqlcomp/source");
+        Query sink_config = config.query("/sqlcomp/sink");
+
         // Pick out --verbose and --debug
         args = Log.parseArgs(args);
 
-        String cmd = args[0];
+        String cmd = args[1];
 
         if (cmd.equals("show-source-tables"))
         {
-            Database source = useEnvWithPrefix("SQLCOMP_SOURCE", "");
+            Database source = useConfig(source_config, "");
             showTables(source);
             return;
         }
 
         if (cmd.equals("show-sink-tables"))
         {
-            Database sink = useEnvWithPrefix("SQLCOMP_SINK", "");
+            Database sink = useConfig(sink_config, "");
             showTables(sink);
             return;
         }
@@ -57,14 +74,22 @@ public class Main
         if (cmd.equals("stream-data"))
         {
             Status status = new Status("stream-data");
-            stream_data(args, status);
-            repeat_sync_data(args, status);
+
+            Database source = useConfig(source_config, "");
+            Database sink = useConfig(sink_config, "");
+
+            stream_data(source, sink, args, status);
+            repeat_sync_data(source_config, sink_config, args, status);
         }
 
         if (cmd.equals("stream-data-no-sync"))
         {
             Status status = new Status("stream-data-no-sync");
-            stream_data(args, status);
+
+            Database source = useConfig(source_config, "");
+            Database sink = useConfig(sink_config, "");
+
+            stream_data(source, sink, args, status);
             while (true)
             {
                 try { Thread.sleep(10000); } catch (InterruptedException e) { }
@@ -73,15 +98,18 @@ public class Main
 
         if (cmd.equals("sync-data"))
         {
-            Status status = new Status("sync-data");
-
             String table_pattern = ""; // Default is all tables
             if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
 
             if (!table_pattern.equals("")) Log.verbose("(sync-data) "+table_pattern+"\n");
             else Log.verbose("(sync-data) all tables\n");
 
-            sync(table_pattern, false, status);
+            Database source = useConfig(source_config, table_pattern);
+            Database sink   = useConfig(sink_config, table_pattern);
+
+            Status status = new Status("sync-data");
+
+            sync(source, sink, table_pattern, false, status);
             return;
         }
 
@@ -93,7 +121,10 @@ public class Main
             if (!table_pattern.equals("")) Log.verbose("(compare-data) "+table_pattern+"\n");
             else Log.verbose("(comapare-data) all tables\n");
 
-            sync(table_pattern, true, null);
+            Database source = useConfig(source_config, table_pattern);
+            Database sink   = useConfig(sink_config, table_pattern);
+
+            sync(source, sink, table_pattern, true, null);
             return;
         }
 
@@ -105,8 +136,8 @@ public class Main
             if (!table_pattern.equals("")) Log.verbose("(compare-tables) "+table_pattern+"\n");
             else Log.verbose("(compare-tables) all tables\n");
 
-            Database from = useEnvWithPrefix("SQLCOMP_SOURCE", table_pattern);
-            Database to   = useEnvWithPrefix("SQLCOMP_SINK", table_pattern);
+            Database from = useConfig(source_config, table_pattern);
+            Database to   = useConfig(sink_config, table_pattern);
 
             StringBuilder out = new StringBuilder();
             out.append("-- compare-tables "+from.name()+"("+from.db().dbName()+":"+from.db().dbType()+") --> "+to.name()+"("+to.db().dbName()+":"+to.db().dbType()+")\n");
@@ -147,26 +178,20 @@ public class Main
         System.exit(1);
     }
 
-    static Database useEnvWithPrefix(String prefix, String table_pattern)
+    static Database useConfig(Query config, String table_pattern)
     {
-        String url = System.getenv(prefix+"_DB_URL"); // "jdbc:postgresql://localhost/fromcomp";
-
-        if (url == null || url.trim().equals(""))
+        String url = "";
+        try
         {
-            Log.info("sqlcomp: please provide the following env variables:\n"+
-                     prefix+"_NAME=MySourceDB\n"+
-                     prefix+"_DB_URL=jdbc:postgresql://localhost/fromcomp\n"+
-                     prefix+"_DB_USER=testuser\n"+
-                     prefix+"_DB_PWD=asecret\n"+
-                     prefix+"_DB_SCHEMA=\n"+
-                     prefix+"_DB_IGNORED_TABLES=");
-            System.exit(1);
+            url = config.getString("db_url", "\\w+");
+
+            if (url.startsWith("jdbc:postgresql")) return new Postgres(config, table_pattern);
+            else if (url.startsWith("jdbc:mariadb")) return new Mysql(config, table_pattern);
+            else if (url.startsWith("jdbc:sqlserver")) return new SQLServer(config, table_pattern);
         }
-
-        if (url.startsWith("jdbc:postgresql")) return new Postgres(prefix, table_pattern);
-        if (url.startsWith("jdbc:mariadb")) return new Mysql(prefix, table_pattern);
-        if (url.startsWith("jdbc:sqlserver")) return new SQLServer(prefix, table_pattern);
-
+        catch (Exception e)
+        {
+        }
         Log.usageError("No supported database driver found inside url: "+url);
         System.exit(1);
 
@@ -189,15 +214,12 @@ public class Main
                  """);
     }
 
-    static void sync(String table_pattern, boolean dryrun, Status status)
+    static void sync(Database source, Database sink, String table_pattern, boolean dryrun, Status status)
     {
         Log.verbose("(sync-data) start table ["+table_pattern+"] "
-                           +System.getenv("SQLCOMP_SOURCE_NAME")
+                    +source.name()
                            +" --> "
-                           +System.getenv("SQLCOMP_SINK_NAME")+"\n");
-
-        Database source = useEnvWithPrefix("SQLCOMP_SOURCE", table_pattern);
-        Database sink   = useEnvWithPrefix("SQLCOMP_SINK", table_pattern);
+                    +sink.name()+"\n");
 
         sink.track(status);
 
@@ -295,7 +317,7 @@ public class Main
         }
     }
 
-    static void stream_data(String[] args, Status status)
+    static void stream_data(Database source, Database sink, String[] args, Status status)
     {
         String table_pattern = "";
         if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
@@ -303,8 +325,6 @@ public class Main
         if (!table_pattern.equals("")) Log.verbose("(stream-data) streaming "+table_pattern+"\n");
         else Log.verbose("(stream-data) streaming all tables\n");
 
-        Database source = useEnvWithPrefix("SQLCOMP_SOURCE", table_pattern);
-        Database sink   = useEnvWithPrefix("SQLCOMP_SINK", table_pattern);
         sink.track(status);
 
         StreamData stream = new StreamData(source, sink);
@@ -313,7 +333,7 @@ public class Main
         thread.start();
     }
 
-    static void repeat_sync_data(String[] args, Status status)
+    static void repeat_sync_data(Query source_config, Query sink_config, String[] args, Status status)
     {
         String table_pattern = "";
         if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
@@ -322,7 +342,11 @@ public class Main
         else Log.verbose("(repeat-sync-data) streaming all tables\n");
 
         status.clearStats();
-        sync(table_pattern, false, status);
+
+        Database source = useConfig(source_config, table_pattern);
+        Database sink = useConfig(sink_config, table_pattern);
+
+        sync(source, sink, table_pattern, false, status);
         status.batchDone();
 
         // Stream forever.
@@ -335,7 +359,7 @@ public class Main
             {
                 Log.verbose("(stream-data) nightly sync started\n");
                 status.clearStats();
-                sync(table_pattern, false, status);
+                sync(source, sink, table_pattern, false, status);
                 status.batchDone();
             }
             // Do not try to sync again during this minutes. Only relevant

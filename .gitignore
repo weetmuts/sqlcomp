@@ -1,3 +1,6 @@
+build
+cached_test_dbs
+
 # Compiled class file
 *.class
 

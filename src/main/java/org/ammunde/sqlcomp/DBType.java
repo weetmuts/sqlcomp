@@ -19,6 +19,7 @@ package org.ammunde.sqlcomp;
 
 public enum DBType
 {
+    UNKNOWN,
     POSTGRES,
     MYSQL,
     MARIADB,

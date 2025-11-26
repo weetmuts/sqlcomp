@@ -5,7 +5,7 @@ project(xsi:schemaLocation = 'http://maven.apache.org/POM/4.0.0 http://maven.apa
     modelVersion = 4.0.0
     groupId      = org.ammunde
     artifactId   = sqlcomp
-    version      = 1.0-SNAPSHOT
+    version      = 1.0.0-SNAPSHOT
     parent {
         groupId    = org.springframework.boot
         artifactId = spring-boot-starter-parent
@@ -48,6 +48,11 @@ project(xsi:schemaLocation = 'http://maven.apache.org/POM/4.0.0 http://maven.apa
         }
     }
     dependencies {
+        dependency {
+            groupId    = org.libxmq
+            artifactId = xmq
+            version    = 0.1.1-SNAPSHOT
+        }
         // https://mvnrepository.com/artifact/com.zaxxer/HikariCP
         dependency {
             groupId    = com.zaxxer

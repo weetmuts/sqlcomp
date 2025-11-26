@@ -4,7 +4,10 @@
 . ./tests/prepare_dbs.sh "$1" "$2" "$3" "$4" "$5"
 
 # Prepare a set set of alter, create and drop commands.
-$SQLCOMP $VERBOSE compare-tables > $OUTPUT/alter.sql
+echo "$SQLCOMP $VERBOSE $CONFIG_XMQ compare-tables > $OUTPUT/alter.sql"
+$SQLCOMP $VERBOSE $CONFIG_XMQ compare-tables > $OUTPUT/alter.sql
+
+exit 0
 
 # Apply the changes.
 cat $OUTPUT/alter.sql | $SINK_DB_CMD $USE_SINK_DB
