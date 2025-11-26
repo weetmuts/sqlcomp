@@ -112,6 +112,11 @@ public class DB
         return name_;
     }
 
+    public String dbUrl()
+    {
+        return db_url_;
+    }
+
     public String dbName()
     {
         return db_name_;

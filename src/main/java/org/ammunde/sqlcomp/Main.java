@@ -31,6 +31,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.nio.file.Paths;
 import java.nio.file.Path;
+import java.nio.file.Files;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 
@@ -52,12 +53,20 @@ public class Main
         XMQ xmq = new XMQ();
         InputSettings is = new InputSettings();
         Path p = Paths.get(config_xmq);
+        if (!Files.isReadable(p))
+        {
+
+            Log.usageError("sqlcomp: Cannot open "+config_xmq+"\n");
+            System.exit(1);
+        }
         Query config = xmq.queryFile(p, is);
 
         Query source_config = config.query("/sqlcomp/source");
         Query sink_config = config.query("/sqlcomp/sink");
 
         String cmd = args[1];
+
+        Log.verbose("(sqlcomp) command "+cmd+"\n");
 
         if (cmd.equals("show-source-tables"))
         {
@@ -101,7 +110,7 @@ public class Main
         if (cmd.equals("sync-data"))
         {
             String table_pattern = ""; // Default is all tables
-            if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
+            if (args.length > 2 && args[2] != null) table_pattern = args[2].trim();
 
             if (!table_pattern.equals("")) Log.verbose("(sync-data) "+table_pattern+"\n");
             else Log.verbose("(sync-data) all tables\n");
@@ -118,7 +127,7 @@ public class Main
         if (cmd.equals("compare-data"))
         {
             String table_pattern = ""; // Default is all tables
-            if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
+            if (args.length > 2 && args[2] != null) table_pattern = args[2].trim();
 
             if (!table_pattern.equals("")) Log.verbose("(compare-data) "+table_pattern+"\n");
             else Log.verbose("(comapare-data) all tables\n");
@@ -133,7 +142,7 @@ public class Main
         if (cmd.equals("compare-tables"))
         {
             String table_pattern = ""; // Default is all tables
-            if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
+            if (args.length > 2 && args[2] != null) table_pattern = args[2].trim();
 
             if (!table_pattern.equals("")) Log.verbose("(compare-tables) "+table_pattern+"\n");
             else Log.verbose("(compare-tables) all tables\n");
@@ -303,6 +312,8 @@ public class Main
 
     static void showTables(Database d)
     {
+        Log.verbose("(showTables) "+d.name()+" "+d.db().dbUrl()+"\n");
+
         ArrayList<Table> tables = new ArrayList<>(d.tables());
         Collections.sort(tables, Table::compareDiskSize);
 
@@ -322,7 +333,7 @@ public class Main
     static void stream_data(Database source, Database sink, String[] args, Status status)
     {
         String table_pattern = "";
-        if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
+        if (args.length > 2 && args[2] != null) table_pattern = args[2].trim();
 
         if (!table_pattern.equals("")) Log.verbose("(stream-data) streaming "+table_pattern+"\n");
         else Log.verbose("(stream-data) streaming all tables\n");
@@ -338,7 +349,7 @@ public class Main
     static void repeat_sync_data(Query source_config, Query sink_config, String[] args, Status status)
     {
         String table_pattern = "";
-        if (args.length > 1 && args[1] != null) table_pattern = args[1].trim();
+        if (args.length > 2 && args[2] != null) table_pattern = args[2].trim();
 
         if (!table_pattern.equals("")) Log.verbose("(repeat-sync-data) "+table_pattern+"\n");
         else Log.verbose("(repeat-sync-data) streaming all tables\n");
