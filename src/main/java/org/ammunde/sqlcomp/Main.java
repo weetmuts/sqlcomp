@@ -44,16 +44,18 @@ public class Main
             return;
         }
 
+        // Pick out --verbose and --debug
+        args = Log.parseArgs(args);
+
+        String config_xmq = args[0];
+
         XMQ xmq = new XMQ();
         InputSettings is = new InputSettings();
-        Path p = Paths.get(args[0]);
+        Path p = Paths.get(config_xmq);
         Query config = xmq.queryFile(p, is);
 
         Query source_config = config.query("/sqlcomp/source");
         Query sink_config = config.query("/sqlcomp/sink");
-
-        // Pick out --verbose and --debug
-        args = Log.parseArgs(args);
 
         String cmd = args[1];
 
